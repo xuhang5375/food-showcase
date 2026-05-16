@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>食材展示</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <h1>食材展示</h1>
+        <button id="adminBtn" onclick="location.href='admin.html'">管理后台</button>
+    </header>
+
+    <main>
+        <div id="filters" class="filters">
+            <button class="filter-btn active" data-category="all">全部</button>
+        </div>
+        <div id="products" class="products-grid"></div>
+    </main>
+
+    <!-- 视频弹窗 -->
+    <div id="videoModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeVideoModal()">&times;</span>
+            <video id="modalVideo" controls>
+                <source src="" type="video/mp4">
+                您的浏览器不支持视频播放
+            </video>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
