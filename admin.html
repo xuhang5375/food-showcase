@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - 食材展示</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <h1>管理后台</h1>
+        <button onclick="location.href='index.html'">返回首页</button>
+    </header>
+
+    <main id="loginSection">
+        <div class="login-box">
+            <h2>管理员登录</h2>
+            <input type="password" id="passwordInput" placeholder="请输入管理密码">
+            <button onclick="checkPassword()">登录</button>
+        </div>
+    </main>
+
+    <main id="adminSection" style="display:none;">
+        <div class="admin-toolbar">
+            <button class="btn-primary" onclick="showAddForm()">添加商品</button>
+        </div>
+
+        <!-- 添加/编辑表单 -->
+        <div id="productForm" class="product-form" style="display:none;">
+            <h3 id="formTitle">添加商品</h3>
+            <input type="hidden" id="productId">
+            <input type="text" id="productName" placeholder="商品名称 *" required>
+            <textarea id="productDesc" placeholder="商品描述"></textarea>
+            <select id="productCategory">
+                <option value="肉类">肉类</option>
+                <option value="海鲜">海鲜</option>
+                <option value="蔬菜">蔬菜</option>
+                <option value="水果">水果</option>
+                <option value="冻品">冻品</option>
+                <option value="其他">其他</option>
+            </select>
+            <div class="upload-section">
+                <label>图片上传：</label>
+                <input type="file" id="imageFile" accept="image/*">
+                <div id="imagePreview"></div>
+            </div>
+            <div class="upload-section">
+                <label>视频上传：</label>
+                <input type="file" id="videoFile" accept="video/*">
+                <div id="videoPreview"></div>
+            </div>
+            <div class="form-actions">
+                <button class="btn-primary" onclick="saveProduct()">保存</button>
+                <button onclick="hideForm()">取消</button>
+            </div>
+        </div>
+
+        <div id="productList"></div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>
