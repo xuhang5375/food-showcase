@@ -9,7 +9,7 @@
 <body>
     <header>
         <h1>食材展示</h1>
-        <button id="adminBtn" onclick="location.href='admin.html'">管理后台</button>
+        <button id="adminBtn" onclick="location.href="admin.html"">管理后台</button>
     </header>
 
     <main>
@@ -30,11 +30,18 @@
         </div>
     </div>
 
-    <script type="module">
-        import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-        window.supabase = createClient("https://infsqrfqksvqzlapvott.supabase.co", "sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD");
-        window.TABLE_NAME = "food_showcase_products";
-        window.BUCKET_NAME = "product-media";
+    <!-- 先加载 Supabase，再加载业务逻辑 -->
+    <script src="https://esm.sh/@supabase/supabase-js@2?bundle=1"></script>
+    <script>
+        // 等待 supabase 加载完成后初始化
+        function initSupabase() {
+            if (typeof supabase !== "undefined") {
+                window.supabase = supabase.createClient("https://infsqrfqksvqzlapvott.supabase.co", "sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD");
+                window.TABLE_NAME = "food_showcase_products";
+                window.BUCKET_NAME = "product-media";
+            }
+        }
+        initSupabase();
     </script>
     <script src="js/app.js"></script>
 </body>
