@@ -1,4 +1,7 @@
 var supabase = window.supabase;
+var ADMIN_PASSWORD = window.ADMIN_PASSWORD;
+var TABLE_NAME = window.TABLE_NAME;
+var BUCKET_NAME = window.BUCKET_NAME;
 
 // 管理后台逻辑
 let isLoggedIn = false;
