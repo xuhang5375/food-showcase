@@ -9,7 +9,7 @@
 <body>
     <header>
         <h1>管理后台</h1>
-        <button onclick="location.href="index.html"">返回首页</button>
+        <button onclick="location.href='index.html'">返回首页</button>
     </header>
 
     <main id="loginSection">
@@ -58,18 +58,12 @@
         <div id="productList"></div>
     </main>
 
-    <!-- 先加载 Supabase，再加载业务逻辑 -->
-    <script src="https://esm.sh/@supabase/supabase-js@2?bundle=1"></script>
-    <script>
-        function initSupabase() {
-            if (typeof supabase !== "undefined") {
-                window.supabase = supabase.createClient("https://infsqrfqksvqzlapvott.supabase.co", "sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD");
-                window.ADMIN_PASSWORD = "920615";
-                window.TABLE_NAME = "food_showcase_products";
-                window.BUCKET_NAME = "product-media";
-            }
-        }
-        initSupabase();
+    <script type="module">
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+        window.supabase = createClient("https://infsqrfqksvqzlapvott.supabase.co", "sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD");
+        window.ADMIN_PASSWORD = "920615";
+        window.TABLE_NAME = "food_showcase_products";
+        window.BUCKET_NAME = "product-media";
     </script>
     <script src="js/admin.js"></script>
 </body>
