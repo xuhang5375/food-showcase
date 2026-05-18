@@ -30,8 +30,12 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="js/config.js"></script>
+    <script type="module">
+        import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+        window.supabase = createClient("https://infsqrfqksvqzlapvott.supabase.co", "sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD");
+        window.TABLE_NAME = "food_showcase_products";
+        window.BUCKET_NAME = "product-media";
+    </script>
     <script src="js/app.js"></script>
 </body>
 </html>
