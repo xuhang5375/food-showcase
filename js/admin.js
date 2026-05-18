@@ -1,3 +1,5 @@
+var supabase = window.supabase;
+
 // 管理后台逻辑
 let isLoggedIn = false;
 let editingId = null;
