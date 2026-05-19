@@ -31,7 +31,19 @@
     </div>
 
     <!-- 先加载 Supabase，再加载业务逻辑 -->
-    <script src="https://esm.sh/@supabase/supabase-js@2?bundle=1"></script>
+    <script type="module">
+        import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+        window.supabase = createClient(
+            "https://infsqrfqksvqzlapvott.supabase.co",
+            "sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD"
+        );
+        window.TABLE_NAME = "food_showcase_products";
+        window.BUCKET_NAME = "product-media";
+        // 动态加载 app.js，确保 supabase 已初始化
+        const script = document.createElement("script");
+        script.src = "js/app.js";
+        document.body.appendChild(script);
+    </script>
     <script>
         // 等待 supabase 加载完成后初始化
         function initSupabase() {
