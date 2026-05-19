@@ -2,47 +2,54 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>食材展示</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>食材采购</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <header>
-        <h1>食材展示</h1>
-        <button id="adminBtn" onclick="location.href='admin.html'">管理后台</button>
+    <!-- 顶部搜索栏 -->
+    <header class="top-header">
+        <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="请输入商品编码、名称、条形码" autocomplete="off">
+            <span class="search-clear" id="searchClear" style="display:none;">✕</span>
+        </div>
+        <a href="admin.html" class="admin-link">管理</a>
     </header>
 
-    <main>
-        <div id="filters" class="filters">
-            <button class="filter-btn active" data-category="all">全部</button>
-        </div>
-        <div id="products" class="products-grid"></div>
-    </main>
+    <!-- 主体：左侧分类 + 右侧商品列表 -->
+    <div class="main-body">
+        <!-- 左侧分类导航 -->
+        <nav class="category-nav" id="categoryNav">
+            <!-- JS 动态生成 -->
+        </nav>
 
-    <!-- 视频弹窗 -->
-    <div id="videoModal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <span class="close" onclick="closeVideoModal()">&times;</span>
-            <video id="modalVideo" controls>
-                <source src="" type="video/mp4">
-                您的浏览器不支持视频播放
-            </video>
+        <!-- 右侧商品列表 -->
+        <section class="product-list" id="productList">
+            <div class="category-title" id="currentCategoryTitle">全部</div>
+            <div class="products" id="products">
+                <!-- JS 动态生成 -->
+            </div>
+        </section>
+    </div>
+
+    <!-- 商品详情弹窗 -->
+    <div class="modal-overlay" id="detailModal" style="display:none;">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeDetailModal()">✕</button>
+            <div id="modalBody"></div>
         </div>
     </div>
 
-    <!-- 先加载 Supabase，再加载业务逻辑 -->
     <script type="module">
-        import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-        window.supabase = createClient(
-            "https://infsqrfqksvqzlapvott.supabase.co",
-            "sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD"
-        );
-        window.TABLE_NAME = "food_showcase_products";
-        window.BUCKET_NAME = "product-media";
-        // 动态加载 app.js，确保 supabase 已初始化
-        const script = document.createElement("script");
-        script.src = "js/app.js";
-        document.body.appendChild(script);
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+        const SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
+
+        window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.TABLE_NAME = 'food_showcase_products';
     </script>
+    <script src="js/app.js"></script>
 </body>
 </html>
