@@ -47,8 +47,7 @@ function renderProductList(products) {
             <div class="admin-product-info">
                 <h3>${p.name}</h3>
                 <p>${p.category || '未分类'}</p>
-                ${p.specification ? `<p>规格：${p.specification}</p>` : ''}
-                ${p.price ? `<p style="color:#e53935;font-weight:bold;">价格：${p.price}</p>` : ''}
+                ${p.price ? `<p style="color:#e53935;font-weight:bold;">${p.price}</p>` : ''}
                 ${p.description ? `<p>${p.description}</p>` : ''}
             </div>
             <div class="admin-product-media">
@@ -94,8 +93,14 @@ async function editProduct(id) {
     document.getElementById('productName').value = data.name;
     document.getElementById('productDesc').value = data.description || '';
     document.getElementById('productCategory').value = data.category || '黑千层';
-    document.getElementById('productSpec').value = data.specification || '';
-    document.getElementById('productPrice').value = data.price || '';
+            let editPrice = '', editUnit = '';
+        if (data.price) {
+            const m = data.price.match(/^(.+)元\/(.+)$/);
+            if (m) { editPrice = m[1]; editUnit = m[2]; }
+            else { editPrice = data.price; }
+        }
+        document.getElementById('productSpec').value = editUnit;
+    document.getElementById('productPrice').value = editPrice;
     document.getElementById('imagePreview').innerHTML = currentImageUrl ? `<img src="${currentImageUrl}" style="max-width:150px;">` : '';
     document.getElementById('videoPreview').innerHTML = currentVideoUrl ? `<a href="${currentVideoUrl}" target="_blank">查看当前视频</a>` : '';
 }
@@ -141,12 +146,16 @@ async function saveProduct() {
             uploading.remove();
         }
 
+        const priceVal = document.getElementById('productPrice').value.trim();
+        const unitVal = document.getElementById('productSpec').value;
+        const finalPrice = (priceVal && unitVal) ? priceVal + '元/' + unitVal : (priceVal || unitVal || '');
+
         const productData = {
             name,
             description: document.getElementById('productDesc').value.trim(),
             category: document.getElementById('productCategory').value,
-            specification: document.getElementById('productSpec').value.trim(),
-            price: document.getElementById('productPrice').value.trim(),
+            specification: '',
+            price: finalPrice,
             image_url: imageUrl,
             video_url: videoUrl
         };
