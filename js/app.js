@@ -56,6 +56,8 @@ function renderProducts(products) {
             ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : '<div class="no-image">暂无图片</div>'}
             <div class="product-info">
                 <h3>${p.name}</h3>
+                ${p.specification ? `<p class="product-spec">${p.specification}</p>` : ''}
+                ${p.price ? `<p class="product-price">${p.price}</p>` : ''}
                 ${p.description ? `<p>${p.description}</p>` : ''}
                 ${p.video_url ? '<span class="video-badge">含视频</span>' : ''}
             </div>
@@ -76,7 +78,6 @@ async function toggleDetail(id) {
         video.load();
         modal.style.display = 'flex';
     } else if (p.image_url) {
-        // 无视频时点击图片放大
         alert(p.description || '无描述');
     }
 }
