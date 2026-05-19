@@ -252,3 +252,18 @@ main { padding: 20px; max-width: 1200px; margin: 0 auto; }
     .admin-product-card { flex-wrap: wrap; }
     .admin-product-media { order: -1; }
 }
+
+/* 商品规格 */
+.product-spec {
+    color: #666;
+    font-size: 0.85em;
+    margin: 2px 0;
+}
+
+/* 商品价格 */
+.product-price {
+    color: #e53935;
+    font-weight: bold;
+    font-size: 1.05em;
+    margin: 4px 0;
+}
