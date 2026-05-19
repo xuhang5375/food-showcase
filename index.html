@@ -44,17 +44,5 @@
         script.src = "js/app.js";
         document.body.appendChild(script);
     </script>
-    <script>
-        // 等待 supabase 加载完成后初始化
-        function initSupabase() {
-            if (typeof supabase !== "undefined") {
-                window.supabase = supabase.createClient("https://infsqrfqksvqzlapvott.supabase.co", "sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD");
-                window.TABLE_NAME = "food_showcase_products";
-                window.BUCKET_NAME = "product-media";
-            }
-        }
-        initSupabase();
-    </script>
-    <script src="js/app.js"></script>
 </body>
 </html>
