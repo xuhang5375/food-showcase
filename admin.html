@@ -25,20 +25,22 @@
             <button class="btn-primary" onclick="showAddForm()">添加商品</button>
         </div>
 
-        <!-- 添加/编辑表单 -->
         <div id="productForm" class="product-form" style="display:none;">
             <h3 id="formTitle">添加商品</h3>
             <input type="hidden" id="productId">
             <input type="text" id="productName" placeholder="商品名称 *" required>
             <textarea id="productDesc" placeholder="商品描述"></textarea>
             <select id="productCategory">
-                <option value="肉类">肉类</option>
-                <option value="海鲜">海鲜</option>
-                <option value="蔬菜">蔬菜</option>
-                <option value="水果">水果</option>
+                <option value="黑千层">黑千层</option>
+                <option value="白千层">白千层</option>
+                <option value="叶片">叶片</option>
+                <option value="整肚">整肚</option>
+                <option value="边角料">边角料</option>
+                <option value="虾滑">虾滑</option>
                 <option value="冻品">冻品</option>
-                <option value="其他">其他</option>
             </select>
+            <input type="text" id="productSpec" placeholder="规格（如：500g/盒）">
+            <input type="text" id="productPrice" placeholder="价格（如：35.00元/盒）">
             <div class="upload-section">
                 <label>图片上传：</label>
                 <input type="file" id="imageFile" accept="image/*">
@@ -69,7 +71,6 @@
         window.TABLE_NAME = 'food_showcase_products';
         window.BUCKET_NAME = 'product-media';
 
-        // Dynamically load admin.js after globals are set
         const script = document.createElement('script');
         script.src = 'js/admin.js';
         document.body.appendChild(script);
