@@ -1,6 +1,6 @@
-// ========================================
-// 食材采购 - 前台展示页逻辑
-// 左侧分类导航 + 右侧商品列表 + 搜索
+﻿// ========================================
+// 椋熸潗閲囪喘 - 鍓嶅彴灞曠ず椤甸€昏緫
+// 宸︿晶鍒嗙被瀵艰埅 + 鍙充晶鍟嗗搧鍒楄〃 + 鎼滅储
 // ========================================
 
 var supabase = window.supabase;
@@ -11,7 +11,7 @@ let categories = [];       // [{name, label, parent?}]
 let currentCategory = 'all';
 let searchKeyword = '';
 
-// ---- 初始化 ----
+// ---- 鍒濆鍖?----
 (async function init() {
     await loadProducts();
     buildCategoryNav();
@@ -19,7 +19,7 @@ let searchKeyword = '';
     bindEvents();
 })();
 
-// ---- 加载商品数据 ----
+// ---- 鍔犺浇鍟嗗搧鏁版嵁 ----
 async function loadProducts() {
     const { data, error } = await supabase
         .from(TABLE_NAME)
@@ -27,17 +27,24 @@ async function loadProducts() {
         .order('created_at', { ascending: true });
 
     if (error) {
-        console.error('加载失败:', error);
+        console.error('鍔犺浇澶辫触:', error);
         document.getElementById('products').innerHTML =
-            '<div class="empty-state"><div class="empty-icon">⚠</div><p>加载失败，请刷新重试</p></div>';
+            '<div class="empty-state"><div class="empty-icon">鈿?/div><p>鍔犺浇澶辫触锛岃鍒锋柊閲嶈瘯</p></div>';
         return;
     }
 
     allProducts = data || [];
 
-    // 从数据中提取分类（支持父子分类格式：父类/子类）
+    // 鎸変环鏍兼暟瀛楅儴鍒嗘帓搴忥紙浠庝綆鍒伴珮锛?
+    allProducts.sort((a, b) => {
+        const priceA = a.price ? parseFloat(a.price.split('/')[0]) || 0 : 0;
+        const priceB = b.price ? parseFloat(b.price.split('/')[0]) || 0 : 0;
+        return priceA - priceB;
+    });
+
+    // 浠庢暟鎹腑鎻愬彇鍒嗙被锛堟敮鎸佺埗瀛愬垎绫绘牸寮忥細鐖剁被/瀛愮被锛?
     const catSet = new Set();
-    const subMap = {}; // 父类 -> [子类集合]
+    const subMap = {}; // 鐖剁被 -> [瀛愮被闆嗗悎]
     allProducts.forEach(p => {
         const cat = (p.category || '').trim();
         if (!cat) return;
@@ -53,8 +60,8 @@ async function loadProducts() {
         }
     });
 
-    // 构建分类树
-    categories = [{ name: 'all', label: '全部' }];
+    // 鏋勫缓鍒嗙被鏍?
+    categories = [{ name: 'all', label: '鍏ㄩ儴' }];
     Array.from(catSet).sort().forEach(parent => {
         categories.push({ name: parent, label: parent });
         if (subMap[parent]) {
@@ -65,7 +72,7 @@ async function loadProducts() {
     });
 }
 
-// ---- 构建左侧分类导航 ----
+// ---- 鏋勫缓宸︿晶鍒嗙被瀵艰埅 ----
 function buildCategoryNav() {
     const nav = document.getElementById('categoryNav');
     nav.innerHTML = categories.map((cat, i) => `
@@ -76,20 +83,20 @@ function buildCategoryNav() {
     `).join('');
 }
 
-// ---- 选择分类 ----
+// ---- 閫夋嫨鍒嗙被 ----
 function selectCategory(catName) {
     currentCategory = catName;
 
-    // 更新导航高亮
+    // 鏇存柊瀵艰埅楂樹寒
     document.querySelectorAll('.category-item').forEach(el => {
         el.classList.toggle('active', el.dataset.cat === catName);
     });
 
-    // 更新标题
+    // 鏇存柊鏍囬
     const cat = categories.find(c => c.name === catName);
-    document.getElementById('currentCategoryTitle').textContent = cat ? cat.label : '全部';
+    document.getElementById('currentCategoryTitle').textContent = cat ? cat.label : '鍏ㄩ儴';
 
-    // 如果选中的是子分类，滚动到对应父分类区域
+    // 濡傛灉閫変腑鐨勬槸瀛愬垎绫伙紝婊氬姩鍒板搴旂埗鍒嗙被鍖哄煙
     if (cat && cat.parent) {
         const parentEl = document.querySelector(`.category-item[data-cat="${cat.parent}"]`);
         if (parentEl) parentEl.scrollIntoView({ block: 'nearest' });
@@ -98,29 +105,29 @@ function selectCategory(catName) {
     renderProducts();
 }
 
-// ---- 渲染商品列表 ----
+// ---- 娓叉煋鍟嗗搧鍒楄〃 ----
 function renderProducts() {
     let filtered = allProducts;
 
-    // 分类筛选
+    // 鍒嗙被绛涢€?
     if (currentCategory !== 'all') {
         filtered = filtered.filter(p => {
             const pc = (p.category || '').trim();
             if (currentCategory.includes('/')) {
                 return pc === currentCategory;
             }
-            // 选中父类时，显示该父类下所有子类的商品
+            // 閫変腑鐖剁被鏃讹紝鏄剧ず璇ョ埗绫讳笅鎵€鏈夊瓙绫荤殑鍟嗗搧
             return pc === currentCategory || pc.startsWith(currentCategory + '/');
         });
     }
 
-    // 搜索过滤
+    // 鎼滅储杩囨护
     if (searchKeyword) {
         const kw = searchKeyword.toLowerCase();
         filtered = filtered.filter(p =>
             (p.name || '').toLowerCase().includes(kw) ||
             (p.code || '').toLowerCase().includes(kw) ||
-            (p.spec || '').toLowerCase().includes(kw) ||
+            (p.specification || '').toLowerCase().includes(kw) ||
             (p.description || '').toLowerCase().includes(kw)
         );
     }
@@ -128,18 +135,18 @@ function renderProducts() {
     const container = document.getElementById('products');
 
     if (!filtered.length) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><p>暂无商品</p></div>';
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">馃摝</div><p>鏆傛棤鍟嗗搧</p></div>';
         return;
     }
 
     container.innerHTML = filtered.map(p => {
-        // 价格显示：price 字段存 "数字/单位" 格式
+        // 浠锋牸鏄剧ず锛歱rice 瀛楁瀛?"鏁板瓧/鍗曚綅" 鏍煎紡
         let priceHtml = '';
         if (p.price) {
             const priceParts = p.price.split('/');
             const num = priceParts[0] || '';
             const unit = priceParts[1] || '';
-            priceHtml = `<span class="product-price">${num}<span class="price-unit">元/${unit}</span></span>`;
+            priceHtml = `<span class="product-price">${num}<span class="price-unit">鍏?${unit}</span></span>`;
         }
 
         return `
@@ -147,15 +154,15 @@ function renderProducts() {
             <div class="product-img-wrap">
                 ${p.image_url
                     ? `<img src="${p.image_url}" alt="${escapeHtml(p.name)}" loading="lazy">`
-                    : '<span class="no-img-text">暂无图片</span>'}
+                    : '<span class="no-img-text">鏆傛棤鍥剧墖</span>'}
             </div>
             <div class="product-info">
                 <div class="product-name">${escapeHtml(p.name)}</div>
-                ${p.spec ? `<div class="product-spec">${escapeHtml(p.spec)}</div>` : ''}
-                ${p.code ? `<div class="product-code">编号：${escapeHtml(p.code)}</div>` : ''}
+                ${p.specification ? `<div class="product-spec">${escapeHtml(p.specification)}</div>` : ''}
+                ${p.code ? `<div class="product-code">缂栧彿锛?{escapeHtml(p.code)}</div>` : ''}
                 <div class="product-price-row">
                     ${priceHtml}
-                    <span class="login-hint" onclick="event.stopPropagation()">登录查看价格 ▸</span>
+                    <span class="login-hint" onclick="event.stopPropagation()">鐧诲綍鏌ョ湅浠锋牸 鈻?/span>
                 </div>
             </div>
         </div>
@@ -163,7 +170,7 @@ function renderProducts() {
     }).join('');
 }
 
-// ---- 商品详情弹窗 ----
+// ---- 鍟嗗搧璇︽儏寮圭獥 ----
 function showDetail(id) {
     const p = allProducts.find(x => x.id === id);
     if (!p) return;
@@ -171,7 +178,7 @@ function showDetail(id) {
     let priceHtml = '';
     if (p.price) {
         const pp = p.price.split('/');
-        priceHtml = `<span class="detail-price">${pp[0]}<span class="unit">元/${pp[1]}</span></span>`;
+        priceHtml = `<span class="detail-price">${pp[0]}<span class="unit">鍏?${pp[1]}</span></span>`;
     }
 
     let videoHtml = '';
@@ -191,9 +198,9 @@ function showDetail(id) {
             <div class="detail-name">${escapeHtml(p.name)}</div>
             ${p.description ? `<div class="detail-desc">${escapeHtml(p.description).replace(/\n/g, '<br>')}</div>` : ''}
             <div class="detail-meta">
-                ${p.category ? `<span>分类：${escapeHtml(p.category)}</span>` : ''}
-                ${p.spec ? `<span>规格：${escapeHtml(p.spec)}</span>` : ''}
-                ${p.code ? `<span>编号：${escapeHtml(p.code)}</span>` : ''}
+                ${p.category ? `<span>鍒嗙被锛?{escapeHtml(p.category)}</span>` : ''}
+                ${p.specification ? `<span>瑙勬牸锛?{escapeHtml(p.specification)}</span>` : ''}
+                ${p.code ? `<span>缂栧彿锛?{escapeHtml(p.code)}</span>` : ''}
             </div>
             ${priceHtml}
             ${videoHtml}
@@ -202,7 +209,7 @@ function showDetail(id) {
 
     document.getElementById('detailModal').style.display = 'flex';
 
-    // 阻止背景滚动
+    // 闃绘鑳屾櫙婊氬姩
     document.body.style.overflow = 'hidden';
 }
 
@@ -210,13 +217,13 @@ function closeDetailModal() {
     document.getElementById('detailModal').style.display = 'none';
     document.body.style.overflow = '';
 
-    // 停止视频播放
+    // 鍋滄瑙嗛鎾斁
     const v = document.querySelector('#modalBody video');
     if (v) { v.pause(); v.currentTime = 0; }
     document.getElementById('modalBody').innerHTML = '';
 }
 
-// ---- 搜索功能 ----
+// ---- 鎼滅储鍔熻兘 ----
 function handleSearch() {
     const input = document.getElementById('searchInput');
     const clearBtn = document.getElementById('searchClear');
@@ -224,7 +231,7 @@ function handleSearch() {
     searchKeyword = input.value.trim();
     clearBtn.style.display = searchKeyword ? 'block' : 'none';
 
-    // 搜索时自动切换到"全部"
+    // 鎼滅储鏃惰嚜鍔ㄥ垏鎹㈠埌"鍏ㄩ儴"
     if (searchKeyword && currentCategory !== 'all') {
         selectCategory('all');
     } else {
@@ -232,19 +239,19 @@ function handleSearch() {
     }
 }
 
-// ---- 事件绑定 ----
+// ---- 浜嬩欢缁戝畾 ----
 function bindEvents() {
     const searchInput = document.getElementById('searchInput');
     const searchClear = document.getElementById('searchClear');
 
-    // 搜索输入（防抖）
+    // 鎼滅储杈撳叆锛堥槻鎶栵級
     let searchTimer = null;
     searchInput.addEventListener('input', () => {
         clearTimeout(searchTimer);
         searchTimer = setTimeout(handleSearch, 300);
     });
 
-    // 清除搜索
+    // 娓呴櫎鎼滅储
     searchClear.addEventListener('click', () => {
         searchInput.value = '';
         searchClear.style.display = 'none';
@@ -252,18 +259,18 @@ function bindEvents() {
         renderProducts();
     });
 
-    // 点击遮罩关闭详情
+    // 鐐瑰嚮閬僵鍏抽棴璇︽儏
     document.getElementById('detailModal').addEventListener('click', e => {
         if (e.target === e.currentTarget) closeDetailModal();
     });
 
-    // ESC 关闭
+    // ESC 鍏抽棴
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') closeDetailModal();
     });
 }
 
-// ---- 工具函数 ----
+// ---- 宸ュ叿鍑芥暟 ----
 function escapeHtml(str) {
     if (!str) return '';
     const div = document.createElement('div');
