@@ -1,4 +1,8 @@
-// 管理后台逻辑
+// ========================================
+// 食材采购 - 管理后台逻辑
+// 支持商品增删改 + 图片/视频上传
+// ========================================
+
 var supabase = window.supabase;
 var ADMIN_PASSWORD = window.ADMIN_PASSWORD;
 var TABLE_NAME = window.TABLE_NAME;
@@ -9,6 +13,7 @@ let editingId = null;
 let currentImageUrl = null;
 let currentVideoUrl = null;
 
+// ---- 登录 ----
 function checkPassword() {
     const pw = document.getElementById('passwordInput').value;
     if (pw === ADMIN_PASSWORD) {
@@ -21,6 +26,7 @@ function checkPassword() {
     }
 }
 
+// ---- 加载商品列表 ----
 async function loadProducts() {
     const { data, error } = await supabase
         .from(TABLE_NAME)
@@ -37,72 +43,115 @@ async function loadProducts() {
 
 function renderProductList(products) {
     const container = document.getElementById('productList');
+
     if (!products.length) {
-        container.innerHTML = '<p style="text-align:center;padding:20px;">暂无商品</p>';
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><p>暂无商品，点击上方按钮添加</p></div>';
         return;
     }
 
-    container.innerHTML = products.map(p => `
-        <div class="admin-product-card">
-            <div class="admin-product-info">
-                <h3>${p.name}</h3>
-                <p>${p.category || '未分类'}</p>
-                ${p.price ? `<p style="color:#e53935;font-weight:bold;">${p.price}</p>` : ''}
-                ${p.description ? `<p>${p.description}</p>` : ''}
+    container.innerHTML = products.map(p => {
+        // 价格解析
+        let priceText = '-';
+        if (p.price) {
+            const pp = p.price.split('/');
+            priceText = pp[0] ? (pp[1] ? pp[0] + '元/' + pp[1] : pp[0] + '元') : '-';
+        }
+
+        return `
+        <div class="admin-card">
+            <div class="admin-card-left">
+                <div class="admin-card-img">
+                    ${p.image_url
+                        ? `<img src="${p.image_url}" alt="${escapeHtml(p.name)}" loading="lazy">`
+                        : '<span class="no-img">无图</span>'}
+                </div>
+                <div class="admin-card-info">
+                    <h4>${escapeHtml(p.name)}</h4>
+                    <div class="admin-meta">
+                        ${p.code ? `<span>🏷 ${escapeHtml(p.code)}</span>` : ''}
+                        ${p.category ? `<span>📂 ${escapeHtml(p.category)}</span>` : ''}
+                        ${p.spec ? `<span>📐 ${escapeHtml(p.spec)}</span>` : ''}
+                    </div>
+                    <div class="admin-price">${priceText}</div>
+                </div>
             </div>
-            <div class="admin-product-media">
-                ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}">` : ''}
-                ${p.video_url ? '<span class="video-badge">含视频</span>' : ''}
+            <div class="admin-card-actions">
+                <button class="btn-edit" onclick="editProduct('${p.id}')">编辑</button>
+                <button class="btn-del" onclick="deleteProduct('${p.id}')">删除</button>
             </div>
-            <div class="admin-product-actions">
-                <button onclick="editProduct('${p.id}')">编辑</button>
-                <button class="btn-danger" onclick="deleteProduct('${p.id}')">删除</button>
-            </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
+// ---- 显示添加表单 ----
 function showAddForm() {
     editingId = null;
     currentImageUrl = null;
     currentVideoUrl = null;
+
+    resetForm();
     document.getElementById('formTitle').textContent = '添加商品';
     document.getElementById('productForm').style.display = 'block';
+    document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function resetForm() {
     document.getElementById('productId').value = '';
     document.getElementById('productName').value = '';
-    document.getElementById('productDesc').value = '';
-    document.getElementById('productCategory').value = '黑千层';
+    document.getElementById('productCode').value = '';
+    document.getElementById('productCategory').value = '鲜毛肚';
     document.getElementById('productSpec').value = '';
-    document.getElementById('productPrice').value = '';
+    document.getElementById('productPriceNum').value = '';
+    document.getElementById('productPriceUnit').value = '箱';
+    document.getElementById('productDesc').value = '';
     document.getElementById('imageFile').value = '';
     document.getElementById('videoFile').value = '';
     document.getElementById('imagePreview').innerHTML = '';
     document.getElementById('videoPreview').innerHTML = '';
+    document.getElementById('imageUploadText').style.display = '';
+    document.getElementById('videoUploadText').style.display = '';
 }
 
+// ---- 编辑商品 ----
 async function editProduct(id) {
     const { data } = await supabase.from(TABLE_NAME).select('*').eq('id', id).single();
-    if (!data) return;
+    if (!data) { alert('未找到该商品'); return; }
 
     editingId = id;
     currentImageUrl = data.image_url;
     currentVideoUrl = data.video_url;
+
+    resetForm();
+
     document.getElementById('formTitle').textContent = '编辑商品';
-    document.getElementById('productForm').style.display = 'block';
     document.getElementById('productId').value = id;
-    document.getElementById('productName').value = data.name;
+    document.getElementById('productName').value = data.name || '';
+    document.getElementById('productCode').value = data.code || '';
+    document.getElementById('productCategory').value = data.category || '鲜毛肚';
+    document.getElementById('productSpec').value = data.spec || '';
     document.getElementById('productDesc').value = data.description || '';
-    document.getElementById('productCategory').value = data.category || '黑千层';
-            let editPrice = '', editUnit = '';
-        if (data.price) {
-            const m = data.price.match(/^(.+)元\/(.+)$/);
-            if (m) { editPrice = m[1]; editUnit = m[2]; }
-            else { editPrice = data.price; }
-        }
-        document.getElementById('productSpec').value = editUnit;
-    document.getElementById('productPrice').value = editPrice;
-    document.getElementById('imagePreview').innerHTML = currentImageUrl ? `<img src="${currentImageUrl}" style="max-width:150px;">` : '';
-    document.getElementById('videoPreview').innerHTML = currentVideoUrl ? `<a href="${currentVideoUrl}" target="_blank">查看当前视频</a>` : '';
+
+    // 价格解析
+    if (data.price) {
+        const pp = data.price.split('/');
+        document.getElementById('productPriceNum').value = pp[0] || '';
+        document.getElementById('productPriceUnit').value = pp[1] || '箱';
+    }
+
+    // 当前图片/视频预览
+    if (currentImageUrl) {
+        document.getElementById('imagePreview').innerHTML =
+            `<img src="${currentImageUrl}" style="max-width:120px;max-height:80px;border-radius:6px;">`;
+        document.getElementById('imageUploadText').style.display = 'none';
+    }
+    if (currentVideoUrl) {
+        document.getElementById('videoPreview').innerHTML =
+            `<video src="${currentVideoUrl}" style="max-width:200px;max-height:100px;border-radius:6px;" controls></video>`;
+        document.getElementById('videoUploadText').style.display = 'none';
+    }
+
+    document.getElementById('productForm').style.display = 'block';
+    document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
 }
 
 function hideForm() {
@@ -110,15 +159,23 @@ function hideForm() {
     editingId = null;
 }
 
+// ---- 文件上传 ----
 async function uploadFile(file) {
-    const filename = `${Date.now()}_${file.name}`;
-    const { data, error } = await supabase.storage.from(BUCKET_NAME).upload(filename, file);
+    const ext = file.name.split('.').pop().toLowerCase();
+    const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    const { data, error } = await supabase.storage.from(BUCKET_NAME).upload(filename, file, {
+        cacheControl: '3600',
+        upsert: false
+    });
+
     if (error) throw error;
 
     const publicUrl = `https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/${BUCKET_NAME}/${filename}`;
     return publicUrl;
 }
 
+// ---- 保存商品 ----
 async function saveProduct() {
     const name = document.getElementById('productName').value.trim();
     if (!name) { alert('请输入商品名称'); return; }
@@ -130,32 +187,38 @@ async function saveProduct() {
         let imageUrl = currentImageUrl;
         let videoUrl = currentVideoUrl;
 
+        // 上传图片
         if (imageFile) {
-            const uploading = document.createElement('div');
-            uploading.textContent = '上传图片中...';
-            document.getElementById('imagePreview').appendChild(uploading);
+            showUploading('imagePreview', '上传图片中...');
             imageUrl = await uploadFile(imageFile);
-            uploading.remove();
+            clearUploading('imagePreview');
+            document.getElementById('imagePreview').innerHTML =
+                `<img src="${imageUrl}" style="max-width:120px;max-height:80px;border-radius:6px;">`;
+            document.getElementById('imageUploadText').style.display = 'none';
         }
 
+        // 上传视频
         if (videoFile) {
-            const uploading = document.createElement('div');
-            uploading.textContent = '上传视频中...';
-            document.getElementById('videoPreview').appendChild(uploading);
+            showUploading('videoPreview', '上传视频中...');
             videoUrl = await uploadFile(videoFile);
-            uploading.remove();
+            clearUploading('videoPreview');
+            document.getElementById('videoPreview').innerHTML =
+                `<video src="${videoUrl}" style="max-width:200px;max-height:100px;border-radius:6px;" controls></video>`;
+            document.getElementById('videoUploadText').style.display = 'none';
         }
 
-        const priceVal = document.getElementById('productPrice').value.trim();
-        const unitVal = document.getElementById('productSpec').value;
-        const finalPrice = (priceVal && unitVal) ? priceVal + '元/' + unitVal : (priceVal || unitVal || '');
+        // 拼接价格
+        const priceNum = document.getElementById('productPriceNum').value.trim();
+        const priceUnit = document.getElementById('productPriceUnit').value;
+        const priceStr = priceNum ? `${priceNum}/${priceUnit}` : '';
 
         const productData = {
             name,
-            description: document.getElementById('productDesc').value.trim(),
+            code: document.getElementById('productCode').value.trim(),
             category: document.getElementById('productCategory').value,
-            specification: '',
-            price: finalPrice,
+            spec: document.getElementById('productSpec').value.trim(),
+            description: document.getElementById('productDesc').value.trim(),
+            price: priceStr,
             image_url: imageUrl,
             video_url: videoUrl
         };
@@ -169,7 +232,7 @@ async function saveProduct() {
 
         if (result.error) throw result.error;
 
-        alert(editingId ? '修改成功' : '添加成功');
+        alert(editingId ? '修改成功！' : '添加成功！');
         hideForm();
         loadProducts();
     } catch (err) {
@@ -178,8 +241,10 @@ async function saveProduct() {
     }
 }
 
+// ---- 删除商品 ----
 async function deleteProduct(id) {
-    if (!confirm('确定删除？')) return;
+    if (!confirm('确定删除此商品？')) return;
+
     const { error } = await supabase.from(TABLE_NAME).delete().eq('id', id);
     if (error) {
         alert('删除失败: ' + error.message);
@@ -188,17 +253,44 @@ async function deleteProduct(id) {
     }
 }
 
-// 图片/视频预览
+// ---- 辅助函数 ----
+function showUploading(containerId, text) {
+    const el = document.getElementById(containerId);
+    const tip = document.createElement('div');
+    tip.className = 'upload-tip';
+    tip.textContent = text;
+    el.appendChild(tip);
+}
+
+function clearUploading(containerId) {
+    const el = document.getElementById(containerId);
+    const tip = el.querySelector('.upload-tip');
+    if (tip) tip.remove();
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// ---- 图片/视频预览（文件选择后即时预览）----
 document.getElementById('imageFile')?.addEventListener('change', function() {
     const file = this.files[0];
     if (file) {
-        document.getElementById('imagePreview').innerHTML = `<img src="${URL.createObjectURL(file)}" style="max-width:150px;">`;
+        document.getElementById('imagePreview').innerHTML =
+            `<img src="${URL.createObjectURL(file)}" style="max-width:120px;max-height:80px;border-radius:6px;">`;
+        document.getElementById('imageUploadText').style.display = 'none';
     }
 });
+
 document.getElementById('videoFile')?.addEventListener('change', function() {
     const file = this.files[0];
     if (file) {
-        document.getElementById('videoPreview').innerHTML = `<video src="${URL.createObjectURL(file)}" style="max-width:200px;max-height:120px;" controls></video>`;
+        document.getElementById('videoPreview').innerHTML =
+            `<video src="${URL.createObjectURL(file)}" style="max-width:200px;max-height:100px;border-radius:6px;" controls></video>`;
+        document.getElementById('videoUploadText').style.display = 'none';
     }
 });
 
