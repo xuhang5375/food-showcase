@@ -1,6 +1,6 @@
-// ========================================
-// 食材采购 - 管理后台逻辑
-// 支持商品增删改 + 图片/视频上传
+﻿// ========================================
+// 椋熸潗閲囪喘 - 绠＄悊鍚庡彴閫昏緫
+// 鏀寔鍟嗗搧澧炲垹鏀?+ 鍥剧墖/瑙嗛涓婁紶
 // ========================================
 
 var supabase = window.supabase;
@@ -13,7 +13,7 @@ let editingId = null;
 let currentImageUrl = null;
 let currentVideoUrl = null;
 
-// ---- 登录 ----
+// ---- 鐧诲綍 ----
 function checkPassword() {
     const pw = document.getElementById('passwordInput').value;
     if (pw === ADMIN_PASSWORD) {
@@ -22,11 +22,11 @@ function checkPassword() {
         document.getElementById('adminSection').style.display = 'block';
         loadProducts();
     } else {
-        alert('密码错误');
+        alert('瀵嗙爜閿欒');
     }
 }
 
-// ---- 加载商品列表 ----
+// ---- 鍔犺浇鍟嗗搧鍒楄〃 ----
 async function loadProducts() {
     const { data, error } = await supabase
         .from(TABLE_NAME)
@@ -34,7 +34,7 @@ async function loadProducts() {
         .order('created_at', { ascending: false });
 
     if (error) {
-        alert('加载失败: ' + error.message);
+        alert('鍔犺浇澶辫触: ' + error.message);
         return;
     }
 
@@ -45,16 +45,16 @@ function renderProductList(products) {
     const container = document.getElementById('productList');
 
     if (!products.length) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><p>暂无商品，点击上方按钮添加</p></div>';
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">馃摝</div><p>鏆傛棤鍟嗗搧锛岀偣鍑讳笂鏂规寜閽坊鍔?/p></div>';
         return;
     }
 
     container.innerHTML = products.map(p => {
-        // 价格解析
+        // 浠锋牸瑙ｆ瀽
         let priceText = '-';
         if (p.price) {
             const pp = p.price.split('/');
-            priceText = pp[0] ? (pp[1] ? pp[0] + '元/' + pp[1] : pp[0] + '元') : '-';
+            priceText = pp[0] ? (pp[1] ? pp[0] + '鍏?' + pp[1] : pp[0] + '鍏?) : '-';
         }
 
         return `
@@ -63,34 +63,34 @@ function renderProductList(products) {
                 <div class="admin-card-img">
                     ${p.image_url
                         ? `<img src="${p.image_url}" alt="${escapeHtml(p.name)}" loading="lazy">`
-                        : '<span class="no-img">无图</span>'}
+                        : '<span class="no-img">鏃犲浘</span>'}
                 </div>
                 <div class="admin-card-info">
                     <h4>${escapeHtml(p.name)}</h4>
                     <div class="admin-meta">
-                        ${p.code ? `<span>🏷 ${escapeHtml(p.code)}</span>` : ''}
-                        ${p.category ? `<span>📂 ${escapeHtml(p.category)}</span>` : ''}
-                        ${p.spec ? `<span>📐 ${escapeHtml(p.spec)}</span>` : ''}
+                        ${p.code ? `<span>馃彿 ${escapeHtml(p.code)}</span>` : ''}
+                        ${p.category ? `<span>馃搨 ${escapeHtml(p.category)}</span>` : ''}
+                        ${p.specification ? `<span>馃搻 ${escapeHtml(p.specification)}</span>` : ''}
                     </div>
                     <div class="admin-price">${priceText}</div>
                 </div>
             </div>
             <div class="admin-card-actions">
-                <button class="btn-edit" onclick="editProduct('${p.id}')">编辑</button>
-                <button class="btn-del" onclick="deleteProduct('${p.id}')">删除</button>
+                <button class="btn-edit" onclick="editProduct('${p.id}')">缂栬緫</button>
+                <button class="btn-del" onclick="deleteProduct('${p.id}')">鍒犻櫎</button>
             </div>
         </div>`;
     }).join('');
 }
 
-// ---- 显示添加表单 ----
+// ---- 鏄剧ず娣诲姞琛ㄥ崟 ----
 function showAddForm() {
     editingId = null;
     currentImageUrl = null;
     currentVideoUrl = null;
 
     resetForm();
-    document.getElementById('formTitle').textContent = '添加商品';
+    document.getElementById('formTitle').textContent = '娣诲姞鍟嗗搧';
     document.getElementById('productForm').style.display = 'block';
     document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
 }
@@ -99,10 +99,10 @@ function resetForm() {
     document.getElementById('productId').value = '';
     document.getElementById('productName').value = '';
     document.getElementById('productCode').value = '';
-    document.getElementById('productCategory').value = '鲜毛肚';
+    document.getElementById('productCategory').value = '椴滄瘺鑲?;
     document.getElementById('productSpec').value = '';
     document.getElementById('productPriceNum').value = '';
-    document.getElementById('productPriceUnit').value = '箱';
+    document.getElementById('productPriceUnit').value = '绠?;
     document.getElementById('productDesc').value = '';
     document.getElementById('imageFile').value = '';
     document.getElementById('videoFile').value = '';
@@ -112,10 +112,10 @@ function resetForm() {
     document.getElementById('videoUploadText').style.display = '';
 }
 
-// ---- 编辑商品 ----
+// ---- 缂栬緫鍟嗗搧 ----
 async function editProduct(id) {
     const { data } = await supabase.from(TABLE_NAME).select('*').eq('id', id).single();
-    if (!data) { alert('未找到该商品'); return; }
+    if (!data) { alert('鏈壘鍒拌鍟嗗搧'); return; }
 
     editingId = id;
     currentImageUrl = data.image_url;
@@ -123,22 +123,22 @@ async function editProduct(id) {
 
     resetForm();
 
-    document.getElementById('formTitle').textContent = '编辑商品';
+    document.getElementById('formTitle').textContent = '缂栬緫鍟嗗搧';
     document.getElementById('productId').value = id;
     document.getElementById('productName').value = data.name || '';
     document.getElementById('productCode').value = data.code || '';
-    document.getElementById('productCategory').value = data.category || '鲜毛肚';
-    document.getElementById('productSpec').value = data.spec || '';
+    document.getElementById('productCategory').value = data.category || '椴滄瘺鑲?;
+    document.getElementById('productSpec').value = data.specification || '';
     document.getElementById('productDesc').value = data.description || '';
 
-    // 价格解析
+    // 浠锋牸瑙ｆ瀽
     if (data.price) {
         const pp = data.price.split('/');
         document.getElementById('productPriceNum').value = pp[0] || '';
-        document.getElementById('productPriceUnit').value = pp[1] || '箱';
+        document.getElementById('productPriceUnit').value = pp[1] || '绠?;
     }
 
-    // 当前图片/视频预览
+    // 褰撳墠鍥剧墖/瑙嗛棰勮
     if (currentImageUrl) {
         document.getElementById('imagePreview').innerHTML =
             `<img src="${currentImageUrl}" style="max-width:120px;max-height:80px;border-radius:6px;">`;
@@ -159,7 +159,7 @@ function hideForm() {
     editingId = null;
 }
 
-// ---- 文件上传 ----
+// ---- 鏂囦欢涓婁紶 ----
 async function uploadFile(file) {
     const ext = file.name.split('.').pop().toLowerCase();
     const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
@@ -175,10 +175,10 @@ async function uploadFile(file) {
     return publicUrl;
 }
 
-// ---- 保存商品 ----
+// ---- 淇濆瓨鍟嗗搧 ----
 async function saveProduct() {
     const name = document.getElementById('productName').value.trim();
-    if (!name) { alert('请输入商品名称'); return; }
+    if (!name) { alert('璇疯緭鍏ュ晢鍝佸悕绉?); return; }
 
     const imageFile = document.getElementById('imageFile').files[0];
     const videoFile = document.getElementById('videoFile').files[0];
@@ -187,9 +187,9 @@ async function saveProduct() {
         let imageUrl = currentImageUrl;
         let videoUrl = currentVideoUrl;
 
-        // 上传图片
+        // 涓婁紶鍥剧墖
         if (imageFile) {
-            showUploading('imagePreview', '上传图片中...');
+            showUploading('imagePreview', '涓婁紶鍥剧墖涓?..');
             imageUrl = await uploadFile(imageFile);
             clearUploading('imagePreview');
             document.getElementById('imagePreview').innerHTML =
@@ -197,9 +197,9 @@ async function saveProduct() {
             document.getElementById('imageUploadText').style.display = 'none';
         }
 
-        // 上传视频
+        // 涓婁紶瑙嗛
         if (videoFile) {
-            showUploading('videoPreview', '上传视频中...');
+            showUploading('videoPreview', '涓婁紶瑙嗛涓?..');
             videoUrl = await uploadFile(videoFile);
             clearUploading('videoPreview');
             document.getElementById('videoPreview').innerHTML =
@@ -207,7 +207,7 @@ async function saveProduct() {
             document.getElementById('videoUploadText').style.display = 'none';
         }
 
-        // 拼接价格
+        // 鎷兼帴浠锋牸
         const priceNum = document.getElementById('productPriceNum').value.trim();
         const priceUnit = document.getElementById('productPriceUnit').value;
         const priceStr = priceNum ? `${priceNum}/${priceUnit}` : '';
@@ -232,28 +232,28 @@ async function saveProduct() {
 
         if (result.error) throw result.error;
 
-        alert(editingId ? '修改成功！' : '添加成功！');
+        alert(editingId ? '淇敼鎴愬姛锛? : '娣诲姞鎴愬姛锛?);
         hideForm();
         loadProducts();
     } catch (err) {
-        console.error('保存失败:', err);
-        alert('保存失败: ' + err.message);
+        console.error('淇濆瓨澶辫触:', err);
+        alert('淇濆瓨澶辫触: ' + err.message);
     }
 }
 
-// ---- 删除商品 ----
+// ---- 鍒犻櫎鍟嗗搧 ----
 async function deleteProduct(id) {
-    if (!confirm('确定删除此商品？')) return;
+    if (!confirm('纭畾鍒犻櫎姝ゅ晢鍝侊紵')) return;
 
     const { error } = await supabase.from(TABLE_NAME).delete().eq('id', id);
     if (error) {
-        alert('删除失败: ' + error.message);
+        alert('鍒犻櫎澶辫触: ' + error.message);
     } else {
         loadProducts();
     }
 }
 
-// ---- 辅助函数 ----
+// ---- 杈呭姪鍑芥暟 ----
 function showUploading(containerId, text) {
     const el = document.getElementById(containerId);
     const tip = document.createElement('div');
@@ -275,7 +275,7 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
-// ---- 图片/视频预览（文件选择后即时预览）----
+// ---- 鍥剧墖/瑙嗛棰勮锛堟枃浠堕€夋嫨鍚庡嵆鏃堕瑙堬級----
 document.getElementById('imageFile')?.addEventListener('change', function() {
     const file = this.files[0];
     if (file) {
@@ -294,7 +294,7 @@ document.getElementById('videoFile')?.addEventListener('change', function() {
     }
 });
 
-// 回车登录
+// 鍥炶溅鐧诲綍
 document.getElementById('passwordInput')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') checkPassword();
 });
