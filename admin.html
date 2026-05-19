@@ -2,63 +2,120 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理后台 - 食材展示</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>管理后台 - 食材采购</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <header>
-        <h1>管理后台</h1>
-        <button onclick="location.href='index.html'">返回首页</button>
+    <!-- 顶部 -->
+    <header class="top-header">
+        <span style="color:#fff;font-size:16px;font-weight:600;">管理后台</span>
+        <a href="index.html" class="admin-link">返回前台</a>
     </header>
 
-    <main id="loginSection">
+    <!-- 登录页 -->
+    <div id="loginSection" class="login-page">
         <div class="login-box">
             <h2>管理员登录</h2>
-            <input type="password" id="passwordInput" placeholder="请输入管理密码">
-            <button onclick="checkPassword()">登录</button>
+            <input type="password" id="passwordInput" placeholder="请输入管理密码" autocomplete="off">
+            <button class="login-btn" onclick="checkPassword()">登 录</button>
         </div>
-    </main>
+    </div>
 
-    <main id="adminSection" style="display:none;">
+    <!-- 管理区 -->
+    <div id="adminSection" style="display:none;padding-top:46px;min-height:100vh;">
         <div class="admin-toolbar">
-            <button class="btn-primary" onclick="showAddForm()">添加商品</button>
+            <button class="btn-add" onclick="showAddForm()">＋ 添加商品</button>
         </div>
 
+        <!-- 添加/编辑表单 -->
         <div id="productForm" class="product-form" style="display:none;">
             <h3 id="formTitle">添加商品</h3>
             <input type="hidden" id="productId">
-            <input type="text" id="productName" placeholder="商品名称 *" required>
-            <textarea id="productDesc" placeholder="商品描述"></textarea>
-            <select id="productCategory">
-                <option value="黑千层">黑千层</option>
-                <option value="白千层">白千层</option>
-                <option value="叶片">叶片</option>
-                <option value="整肚">整肚</option>
-                <option value="边角料">边角料</option>
-                <option value="虾滑">虾滑</option>
-                <option value="冻品">冻品</option>
-            </select>
-            <input type="text" id="productSpec" placeholder="规格（如：500g/盒）">
-            <input type="text" id="productPrice" placeholder="价格（如：35.00元/盒）">
-            <div class="upload-section">
-                <label>图片上传：</label>
-                <input type="file" id="imageFile" accept="image/*">
-                <div id="imagePreview"></div>
+
+            <div class="form-group">
+                <label>商品名称 *</label>
+                <input type="text" id="productName" placeholder="如：2斤精品水牛切叶" required>
             </div>
-            <div class="upload-section">
-                <label>视频上传：</label>
-                <input type="file" id="videoFile" accept="video/*">
-                <div id="videoPreview"></div>
+
+            <div class="form-row">
+                <div class="form-group flex1">
+                    <label>商品编码</label>
+                    <input type="text" id="productCode" placeholder="如：2JPSNQYP">
+                </div>
+                <div class="form-group flex1">
+                    <label>分类</label>
+                    <select id="productCategory">
+                        <option value="鲜毛肚">鲜毛肚</option>
+                        <option value="叶片/千层">叶片 / 千层</option>
+                        <option value="叶片/白玉毛肚">叶片 / 白玉毛肚</option>
+                        <option value="整肚">整肚</option>
+                        <option value="其他">其他</option>
+                        <option value="毛肚边角">毛肚边角</option>
+                        <option value="猪黄喉">猪黄喉</option>
+                        <option value="牛黄喉">牛黄喉</option>
+                        <option value="黄金毛肚">黄金毛肚</option>
+                        <option value="清真系列">清真系列</option>
+                    </select>
+                </div>
             </div>
+
+            <div class="form-row">
+                <div class="form-group flex1">
+                    <label>规格</label>
+                    <input type="text" id="productSpec" placeholder="如：1件*25袋*2斤">
+                </div>
+                <div class="form-row-inner">
+                    <div class="form-group flex1">
+                        <label>价格(元)</label>
+                        <input type="number" id="productPriceNum" placeholder="数字" min="0" step="0.01">
+                    </div>
+                    <div class="form-group flex1">
+                        <label>单位</label>
+                        <select id="productPriceUnit">
+                            <option value="箱">箱</option>
+                            <option value="斤">斤</option>
+                            <option value="袋">袋</option>
+                            <option value="kg">kg</option>
+                            <option value="包">包</option>
+                            <option value="件">件</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>商品描述</label>
+                <textarea id="productDesc" placeholder="选填，商品详细描述"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>商品图片</label>
+                <div class="upload-area" onclick="document.getElementById('imageFile').click()">
+                    <span id="imageUploadText">📷 点击上传图片</span>
+                </div>
+                <input type="file" id="imageFile" accept="image/*" style="display:none;">
+                <div id="imagePreview" class="preview-area"></div>
+            </div>
+
+            <div class="form-group">
+                <label>商品视频（选填）</label>
+                <div class="upload-area" onclick="document.getElementById('videoFile').click()">
+                    <span id="videoUploadText">🎬 点击上传视频</span>
+                </div>
+                <input type="file" id="videoFile" accept="video/*" style="display:none;">
+                <div id="videoPreview" class="preview-area"></div>
+            </div>
+
             <div class="form-actions">
-                <button class="btn-primary" onclick="saveProduct()">保存</button>
-                <button onclick="hideForm()">取消</button>
+                <button class="btn-save" onclick="saveProduct()">保 存</button>
+                <button class="btn-cancel" onclick="hideForm()">取 消</button>
             </div>
         </div>
 
-        <div id="productList"></div>
-    </main>
+        <!-- 商品列表 -->
+        <div id="productList" class="admin-list"></div>
+    </div>
 
     <script type="module">
         import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -70,10 +127,7 @@
         window.ADMIN_PASSWORD = '920615';
         window.TABLE_NAME = 'food_showcase_products';
         window.BUCKET_NAME = 'product-media';
-
-        const script = document.createElement('script');
-        script.src = 'js/admin.js';
-        document.body.appendChild(script);
     </script>
+    <script src="js/admin.js"></script>
 </body>
 </html>
