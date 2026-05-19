@@ -1,4 +1,5 @@
 // 主展示页逻辑
+var supabase = window.supabase;
 let allProducts = [];
 
 async function loadProducts() {
@@ -51,7 +52,7 @@ function renderProducts(products) {
     }
 
     container.innerHTML = products.map(p => `
-        <div class="product-card" onclick="toggleDetail(${p.id})">
+        <div class="product-card" onclick="toggleDetail('${p.id}')">
             ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : '<div class="no-image">暂无图片</div>'}
             <div class="product-info">
                 <h3>${p.name}</h3>
