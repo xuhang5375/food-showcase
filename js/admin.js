@@ -47,6 +47,8 @@ function renderProductList(products) {
             <div class="admin-product-info">
                 <h3>${p.name}</h3>
                 <p>${p.category || '未分类'}</p>
+                ${p.specification ? `<p>规格：${p.specification}</p>` : ''}
+                ${p.price ? `<p style="color:#e53935;font-weight:bold;">价格：${p.price}</p>` : ''}
                 ${p.description ? `<p>${p.description}</p>` : ''}
             </div>
             <div class="admin-product-media">
@@ -70,7 +72,9 @@ function showAddForm() {
     document.getElementById('productId').value = '';
     document.getElementById('productName').value = '';
     document.getElementById('productDesc').value = '';
-    document.getElementById('productCategory').value = '肉类';
+    document.getElementById('productCategory').value = '黑千层';
+    document.getElementById('productSpec').value = '';
+    document.getElementById('productPrice').value = '';
     document.getElementById('imageFile').value = '';
     document.getElementById('videoFile').value = '';
     document.getElementById('imagePreview').innerHTML = '';
@@ -89,7 +93,9 @@ async function editProduct(id) {
     document.getElementById('productId').value = id;
     document.getElementById('productName').value = data.name;
     document.getElementById('productDesc').value = data.description || '';
-    document.getElementById('productCategory').value = data.category || '肉类';
+    document.getElementById('productCategory').value = data.category || '黑千层';
+    document.getElementById('productSpec').value = data.specification || '';
+    document.getElementById('productPrice').value = data.price || '';
     document.getElementById('imagePreview').innerHTML = currentImageUrl ? `<img src="${currentImageUrl}" style="max-width:150px;">` : '';
     document.getElementById('videoPreview').innerHTML = currentVideoUrl ? `<a href="${currentVideoUrl}" target="_blank">查看当前视频</a>` : '';
 }
@@ -104,7 +110,6 @@ async function uploadFile(file) {
     const { data, error } = await supabase.storage.from(BUCKET_NAME).upload(filename, file);
     if (error) throw error;
 
-    // 构造公开 URL（SDK v2 格式）
     const publicUrl = `https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/${BUCKET_NAME}/${filename}`;
     return publicUrl;
 }
@@ -140,6 +145,8 @@ async function saveProduct() {
             name,
             description: document.getElementById('productDesc').value.trim(),
             category: document.getElementById('productCategory').value,
+            specification: document.getElementById('productSpec').value.trim(),
+            price: document.getElementById('productPrice').value.trim(),
             image_url: imageUrl,
             video_url: videoUrl
         };
