@@ -56,7 +56,6 @@ function renderProducts(products) {
             ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : '<div class="no-image">暂无图片</div>'}
             <div class="product-info">
                 <h3>${p.name}</h3>
-                ${p.specification ? `<p class="product-spec">${p.specification}</p>` : ''}
                 ${p.price ? `<p class="product-price">${p.price}</p>` : ''}
                 ${p.description ? `<p>${p.description}</p>` : ''}
                 ${p.video_url ? '<span class="video-badge">含视频</span>' : ''}
