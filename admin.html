@@ -68,7 +68,11 @@
         window.ADMIN_PASSWORD = '920615';
         window.TABLE_NAME = 'food_showcase_products';
         window.BUCKET_NAME = 'product-media';
+
+        // Dynamically load admin.js after globals are set
+        const script = document.createElement('script');
+        script.src = 'js/admin.js';
+        document.body.appendChild(script);
     </script>
-    <script src="js/admin.js"></script>
 </body>
 </html>
