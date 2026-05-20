@@ -12,6 +12,26 @@ let editingId = null;
 let currentImageUrl = null;
 let currentVideoUrl = null;
 
+// ---- 等待 Supabase 初始化 ----
+function waitForSupabase() {
+    return new Promise((resolve) => {
+        if (window.supabase) {
+            resolve();
+        } else {
+            const check = setInterval(() => {
+                if (window.supabase) {
+                    clearInterval(check);
+                    resolve();
+                }
+            }, 50);
+            setTimeout(() => {
+                clearInterval(check);
+                console.error('Supabase 初始化超时');
+            }, 5000);
+        }
+    });
+}
+
 function checkPassword() {
     var pw = document.getElementById('passwordInput').value;
     if (pw === ADMIN_PASSWORD) {
@@ -33,6 +53,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.key === 'Enter') checkPassword();
         });
     }
+    
+    // 绑定文件上传事件
+    var imageFile = document.getElementById('imageFile');
+    if (imageFile) imageFile.addEventListener('change', handleImageUpload);
+    var videoFile = document.getElementById('videoFile');
+    if (videoFile) videoFile.addEventListener('change', handleVideoUpload);
 });
 
 // ---- Toast ----
@@ -46,6 +72,7 @@ function showToast(msg) {
 
 // ---- 加载商品列表 ----
 async function loadProducts() {
+    await waitForSupabase();
     var container = document.getElementById('productList');
     if (!container) return;
     container.innerHTML = '<div style="text-align:center;padding:40px;color:#999">加载中...</div>';
@@ -58,7 +85,7 @@ async function loadProducts() {
             var priceText = '-';
             if (p.price) {
                 var pp = String(p.price).split('/');
-                priceText = pp[0] ? (pp[1] ? pp[0] + '/元' + pp[1] : pp[0]) : '-';
+                priceText = pp[0] ? (pp[1] ? pp[0] + '/' + pp[1] : pp[0]) : '-';
             }
             var coverImg = p.image_url ? '<img src="' + p.image_url + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px" onerror="this.style.display=\'none\'">' : '<div style="width:60px;height:60px;background:#eee;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:24px">📦</div>';
             html += '<div class="product-item" style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #eee;gap:12px">' +
@@ -87,10 +114,11 @@ function showAddForm() {
     document.getElementById('formTitle').textContent = '添加商品';
     document.getElementById('productName').value = '';
     document.getElementById('productDesc').value = '';
-    document.getElementById('productCategory').value = '毛肚叶片';
-    document.getElementById('productPrice').value = '';
+    document.getElementById('productCategory').value = '黑千层';
+    document.getElementById('productPriceNum').value = '';
     document.getElementById('productPriceUnit').value = '箱';
     document.getElementById('productCode').value = '';
+    document.getElementById('productSpec').value = '';
     document.getElementById('imagePreview').innerHTML = '';
     document.getElementById('videoPreview').innerHTML = '';
     document.getElementById('productForm').style.display = 'block';
@@ -110,7 +138,9 @@ function handleImageUpload(event) {
     var reader = new FileReader();
     reader.onload = function(e) {
         currentImageUrl = e.target.result;
-        document.getElementById('imagePreview').innerHTML = '<img src="' + e.target.result + '" style="max-width:200px;max-height:200px;border-radius:8px">';
+        // 手机端自适应预览
+        document.getElementById('imagePreview').innerHTML = '<img src="' + e.target.result + '" style="width:100%;max-width:300px;height:auto;max-height:200px;object-fit:contain;border-radius:8px;background:#f5f5f5">';
+        document.getElementById('imageUploadText').textContent = '✅ 已选择图片';
     };
     reader.readAsDataURL(file);
 }
@@ -121,7 +151,9 @@ function handleVideoUpload(event) {
     if (!file) return;
     var url = URL.createObjectURL(file);
     currentVideoUrl = file;
-    document.getElementById('videoPreview').innerHTML = '<video src="' + url + '" style="max-width:200px;max-height:150px;border-radius:8px" controls></video>';
+    // 手机端自适应预览
+    document.getElementById('videoPreview').innerHTML = '<video src="' + url + '" style="width:100%;max-width:300px;height:auto;max-height:200px;border-radius:8px;background:#000" controls playsinline></video>';
+    document.getElementById('videoUploadText').textContent = '✅ 已选择视频';
 }
 
 // ---- 上传文件到 Supabase Storage ----
@@ -132,7 +164,7 @@ async function uploadToStorage(file, folder) {
         var { data, error } = await getSupabase().storage.from(BUCKET_NAME).upload(path, file, { cacheControl: '3600', upsert: false });
         if (error) { console.error('Storage upload error:', error); return null; }
         var { data: publicUrl } = getSupabase().storage.from(BUCKET_NAME).getPublicUrl(path);
-        return publicUrl;
+        return publicUrl.publicUrl || publicUrl;
     } catch (e) {
         console.error('Storage upload exception:', e);
         return null;
@@ -145,13 +177,14 @@ async function saveProduct() {
     if (!name) { alert('请输入商品名称'); return; }
 
     var desc = document.getElementById('productDesc').value.trim();
-    var category = document.getElementById('productCategory').value || '毛肚叶片';
-    var price = document.getElementById('productPrice').value.trim();
+    var category = document.getElementById('productCategory').value || '黑千层';
+    var priceNum = document.getElementById('productPriceNum').value.trim();
     var unit = document.getElementById('productPriceUnit').value || '箱';
     var code = document.getElementById('productCode').value.trim();
-    var priceStr = price ? price + '/元' + unit : '';
+    var spec = document.getElementById('productSpec').value.trim();
+    var priceStr = priceNum ? priceNum + '/' + unit : '';
 
-    var btn = document.querySelector('#saveBtn');
+    var btn = document.querySelector('.btn-save');
     if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
 
     try {
@@ -178,6 +211,7 @@ async function saveProduct() {
             category: category,
             price: priceStr,
             code: code || null,
+            spec: spec || null,
             image_url: imageUrl || null,
             video_url: videoUrl || null
         };
@@ -197,36 +231,38 @@ async function saveProduct() {
     } catch (e) {
         alert('网络错误: ' + e.message);
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '保存'; }
+        if (btn) { btn.disabled = false; btn.textContent = '保 存'; }
     }
 }
 
 // ---- 编辑商品 ----
 async function editProduct(id) {
+    await waitForSupabase();
     try {
         var { data, error } = await getSupabase().from(TABLE_NAME).select('*').eq('id', id).single();
-        if (!data) { alert('未找到该商品'); return; }
+        if (error || !data) { alert('未找到该商品'); return; }
         editingId = id;
         document.getElementById('formTitle').textContent = '编辑商品';
         document.getElementById('productName').value = data.name || '';
         document.getElementById('productDesc').value = data.description || '';
-        document.getElementById('productCategory').value = data.category || '毛肚叶片';
+        document.getElementById('productCategory').value = data.category || '黑千层';
         document.getElementById('productCode').value = data.code || '';
+        document.getElementById('productSpec').value = data.spec || '';
 
         if (data.price) {
-            var pp = data.price.split('/元');
-            document.getElementById('productPrice').value = pp[0] || '';
+            var pp = data.price.split('/');
+            document.getElementById('productPriceNum').value = pp[0] || '';
             document.getElementById('productPriceUnit').value = pp[1] || '箱';
         } else {
-            document.getElementById('productPrice').value = '';
+            document.getElementById('productPriceNum').value = '';
             document.getElementById('productPriceUnit').value = '箱';
         }
 
         currentImageUrl = data.image_url || null;
         currentVideoUrl = data.video_url || null;
 
-        document.getElementById('imagePreview').innerHTML = data.image_url ? '<img src="' + data.image_url + '" style="max-width:200px;max-height:200px;border-radius:8px">' : '';
-        document.getElementById('videoPreview').innerHTML = data.video_url ? '<video src="' + data.video_url + '" style="max-width:200px;max-height:150px;border-radius:8px" controls></video>' : '';
+        document.getElementById('imagePreview').innerHTML = data.image_url ? '<img src="' + data.image_url + '" style="width:100%;max-width:300px;height:auto;max-height:200px;object-fit:contain;border-radius:8px;background:#f5f5f5">' : '';
+        document.getElementById('videoPreview').innerHTML = data.video_url ? '<video src="' + data.video_url + '" style="width:100%;max-width:300px;height:auto;max-height:200px;border-radius:8px;background:#000" controls playsinline></video>' : '';
 
         document.getElementById('productForm').style.display = 'block';
         document.getElementById('productList').style.display = 'none';
@@ -238,6 +274,7 @@ async function editProduct(id) {
 // ---- 删除商品 ----
 async function deleteProduct(id) {
     if (!confirm('确定删除该商品？')) return;
+    await waitForSupabase();
     try {
         var { error } = await getSupabase().from(TABLE_NAME).delete().eq('id', id);
         if (error) { alert('删除失败: ' + error.message); return; }
