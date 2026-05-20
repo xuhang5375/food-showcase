@@ -1,5 +1,6 @@
 // ========================================
 // food-showcase 管理后台逻辑
+// 支持多图上传
 // ========================================
 
 function getSupabase() { return window.supabase; }
@@ -9,8 +10,8 @@ var BUCKET_NAME = window.BUCKET_NAME || 'product-media';
 
 let isLoggedIn = false;
 let editingId = null;
-let currentImageUrl = null;
-let currentVideoUrl = null;
+let currentImages = [];  // 多图数组
+let currentVideoFile = null;
 
 // ---- 等待 Supabase 初始化 ----
 function waitForSupabase() {
@@ -87,7 +88,14 @@ async function loadProducts() {
                 var pp = String(p.price).split('/');
                 priceText = pp[0] ? (pp[1] ? pp[0] + '/' + pp[1] : pp[0]) : '-';
             }
-            var coverImg = p.image_url ? '<img src="' + p.image_url + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px" onerror="this.style.display=\'none\'">' : '<div style="width:60px;height:60px;background:#eee;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:24px">📦</div>';
+            // 多图取第一张
+            var firstImg = '';
+            if (Array.isArray(p.images) && p.images.length > 0) {
+                firstImg = p.images[0];
+            } else if (p.image_url) {
+                firstImg = p.image_url;
+            }
+            var coverImg = firstImg ? '<img src="' + firstImg + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px" onerror="this.style.display=\'none\'">' : '<div style="width:60px;height:60px;background:#eee;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:24px">📦</div>';
             html += '<div class="product-item" style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #eee;gap:12px">' +
                 coverImg +
                 '<div style="flex:1;min-width:0">' +
@@ -109,8 +117,8 @@ async function loadProducts() {
 // ---- 显示/隐藏表单 ----
 function showAddForm() {
     editingId = null;
-    currentImageUrl = null;
-    currentVideoUrl = null;
+    currentImages = [];
+    currentVideoFile = null;
     document.getElementById('formTitle').textContent = '添加商品';
     document.getElementById('productName').value = '';
     document.getElementById('productDesc').value = '';
@@ -121,6 +129,8 @@ function showAddForm() {
     document.getElementById('productSpec').value = '';
     document.getElementById('imagePreview').innerHTML = '';
     document.getElementById('videoPreview').innerHTML = '';
+    document.getElementById('imageUploadText').textContent = '📷 点击上传图片（可多选）';
+    document.getElementById('videoUploadText').textContent = '🎬 点击上传视频';
     document.getElementById('productForm').style.display = 'block';
     document.getElementById('productList').style.display = 'none';
 }
@@ -131,38 +141,91 @@ function hideForm() {
     loadProducts();
 }
 
-// ---- 图片上传 ----
+// ---- 多图上传 ----
 function handleImageUpload(event) {
-    var file = event.target.files[0];
-    if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function(e) {
-        currentImageUrl = e.target.result;
-        // 手机端自适应预览
-        document.getElementById('imagePreview').innerHTML = '<img src="' + e.target.result + '" style="width:100%;max-width:300px;height:auto;max-height:200px;object-fit:contain;border-radius:8px;background:#f5f5f5">';
-        document.getElementById('imageUploadText').textContent = '✅ 已选择图片';
-    };
-    reader.readAsDataURL(file);
+    var files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    currentImages = [];  // 重置
+    
+    var previewHtml = '';
+    var loadedCount = 0;
+    
+    for (var i = 0; i < files.length; i++) {
+        (function(file, index) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                currentImages.push({
+                    file: file,
+                    dataUrl: e.target.result
+                });
+                
+                // 生成预览
+                previewHtml += '<div style="position:relative;display:inline-block;margin:4px">' +
+                    '<img src="' + e.target.result + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px">' +
+                    '<button onclick="removeImage(' + index + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button>' +
+                    '</div>';
+                
+                loadedCount++;
+                if (loadedCount === files.length) {
+                    document.getElementById('imagePreview').innerHTML = previewHtml;
+                    document.getElementById('imageUploadText').textContent = '✅ 已选择 ' + files.length + ' 张图片';
+                }
+            };
+            reader.readAsDataURL(file);
+        })(files[i], i);
+    }
+}
+
+// 移除单张图片
+function removeImage(index) {
+    currentImages.splice(index, 1);
+    // 重新渲染预览
+    var html = '';
+    currentImages.forEach(function(img, i) {
+        html += '<div style="position:relative;display:inline-block;margin:4px">' +
+            '<img src="' + img.dataUrl + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px">' +
+            '<button onclick="removeImage(' + i + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button>' +
+            '</div>';
+    });
+    document.getElementById('imagePreview').innerHTML = html;
+    document.getElementById('imageUploadText').textContent = currentImages.length > 0 ? '✅ 已选择 ' + currentImages.length + ' 张图片' : '📷 点击上传图片（可多选）';
 }
 
 // ---- 视频上传 ----
 function handleVideoUpload(event) {
     var file = event.target.files[0];
     if (!file) return;
+    
+    currentVideoFile = file;
     var url = URL.createObjectURL(file);
-    currentVideoUrl = file;
-    // 手机端自适应预览
+    
+    console.log('视频文件:', file.name, '大小:', (file.size / 1024 / 1024).toFixed(2), 'MB', '类型:', file.type);
+    
     document.getElementById('videoPreview').innerHTML = '<video src="' + url + '" style="width:100%;max-width:300px;height:auto;max-height:200px;border-radius:8px;background:#000" controls playsinline></video>';
-    document.getElementById('videoUploadText').textContent = '✅ 已选择视频';
+    document.getElementById('videoUploadText').textContent = '✅ 已选择视频: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB';
 }
 
 // ---- 上传文件到 Supabase Storage ----
 async function uploadToStorage(file, folder) {
     var ext = file.name.split('.').pop();
     var path = folder + '/' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '.' + ext;
+    
+    console.log('开始上传:', path, '文件大小:', (file.size / 1024).toFixed(1), 'KB');
+    
     try {
-        var { data, error } = await getSupabase().storage.from(BUCKET_NAME).upload(path, file, { cacheControl: '3600', upsert: false });
-        if (error) { console.error('Storage upload error:', error); return null; }
+        var { data, error } = await getSupabase().storage.from(BUCKET_NAME).upload(path, file, { 
+            cacheControl: '3600', 
+            upsert: false 
+        });
+        
+        if (error) { 
+            console.error('Storage upload error:', error); 
+            return null; 
+        }
+        
+        console.log('上传成功:', data);
+        
         var { data: publicUrl } = getSupabase().storage.from(BUCKET_NAME).getPublicUrl(path);
         return publicUrl.publicUrl || publicUrl;
     } catch (e) {
@@ -188,21 +251,34 @@ async function saveProduct() {
     if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
 
     try {
-        var imageUrl = currentImageUrl;
-        var videoUrl = '';
-
-        // Upload image if it's a file (base64 data URL means local file)
-        if (currentImageUrl && currentImageUrl.startsWith('data:')) {
-            var imgBlob = await fetch(currentImageUrl).then(function(r) { return r.blob(); });
-            var blobFile = new File([imgBlob], 'image.jpg', { type: 'image/jpeg' });
-            var uploaded = await uploadToStorage(blobFile, 'images');
-            if (uploaded) imageUrl = uploaded;
+        // 上传所有图片
+        var imageUrls = [];
+        for (var i = 0; i < currentImages.length; i++) {
+            var img = currentImages[i];
+            var fileToUpload;
+            
+            if (img.file) {
+                fileToUpload = img.file;
+            } else if (img.dataUrl && img.dataUrl.startsWith('data:')) {
+                var imgBlob = await fetch(img.dataUrl).then(function(r) { return r.blob(); });
+                fileToUpload = new File([imgBlob], 'image.jpg', { type: 'image/jpeg' });
+            }
+            
+            if (fileToUpload) {
+                var uploadedUrl = await uploadToStorage(fileToUpload, 'images');
+                if (uploadedUrl) imageUrls.push(uploadedUrl);
+            }
         }
-
-        // Upload video if selected
-        if (currentVideoUrl instanceof File) {
-            var uploadedVideo = await uploadToStorage(currentVideoUrl, 'videos');
-            if (uploadedVideo) videoUrl = uploadedVideo;
+        
+        // 上传视频
+        var videoUrl = '';
+        if (currentVideoFile) {
+            console.log('开始上传视频...');
+            videoUrl = await uploadToStorage(currentVideoFile, 'videos');
+            console.log('视频上传结果:', videoUrl);
+            if (!videoUrl) {
+                alert('视频上传失败，请检查文件大小或格式');
+            }
         }
 
         var body = {
@@ -212,9 +288,12 @@ async function saveProduct() {
             price: priceStr,
             code: code || null,
             specification: specification || null,
-            image_url: imageUrl || null,
+            images: imageUrls.length > 0 ? imageUrls : null,
+            image_url: imageUrls.length > 0 ? imageUrls[0] : null,
             video_url: videoUrl || null
         };
+
+        console.log('保存数据:', body);
 
         var error;
         if (editingId) {
@@ -229,6 +308,7 @@ async function saveProduct() {
         showToast(editingId ? '修改成功' : '添加成功');
         hideForm();
     } catch (e) {
+        console.error('保存异常:', e);
         alert('网络错误: ' + e.message);
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = '保 存'; }
@@ -258,11 +338,30 @@ async function editProduct(id) {
             document.getElementById('productPriceUnit').value = '箱';
         }
 
-        currentImageUrl = data.image_url || null;
-        currentVideoUrl = data.video_url || null;
-
-        document.getElementById('imagePreview').innerHTML = data.image_url ? '<img src="' + data.image_url + '" style="width:100%;max-width:300px;height:auto;max-height:200px;object-fit:contain;border-radius:8px;background:#f5f5f5">' : '';
+        // 多图预览
+        currentImages = [];
+        var imgPreviewHtml = '';
+        
+        if (Array.isArray(data.images) && data.images.length > 0) {
+            data.images.forEach(function(url, i) {
+                currentImages.push({ url: url });
+                imgPreviewHtml += '<div style="position:relative;display:inline-block;margin:4px">' +
+                    '<img src="' + url + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px">' +
+                    '<button onclick="removeImage(' + i + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button>' +
+                    '</div>';
+            });
+        } else if (data.image_url) {
+            currentImages.push({ url: data.image_url });
+            imgPreviewHtml = '<img src="' + data.image_url + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px">';
+        }
+        
+        document.getElementById('imagePreview').innerHTML = imgPreviewHtml;
+        document.getElementById('imageUploadText').textContent = currentImages.length > 0 ? '✅ 已有 ' + currentImages.length + ' 张图片' : '📷 点击上传图片（可多选）';
+        
+        // 视频预览
+        currentVideoFile = null;
         document.getElementById('videoPreview').innerHTML = data.video_url ? '<video src="' + data.video_url + '" style="width:100%;max-width:300px;height:auto;max-height:200px;border-radius:8px;background:#000" controls playsinline></video>' : '';
+        document.getElementById('videoUploadText').textContent = data.video_url ? '✅ 已有视频' : '🎬 点击上传视频';
 
         document.getElementById('productForm').style.display = 'block';
         document.getElementById('productList').style.display = 'none';
