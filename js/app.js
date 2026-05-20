@@ -235,9 +235,9 @@ function showProductDetail(product) {
 
     let mediaHtml = '';
     if (product.video_url) {
-        mediaHtml = '<video src="' + product.video_url + '" controls style="width:100%;max-height:300px;border-radius:8px"></video>';
+        mediaHtml = '<video src="' + product.video_url + '" controls playsinline preload="metadata" style="width:100%;max-height:300px;border-radius:8px;background:#000"></video>';
     } else if (product.image_url) {
-        mediaHtml = '<img src="' + product.image_url + '" style="width:100%;border-radius:8px">';
+        mediaHtml = '<img src="' + product.image_url + '" style="width:100%;max-width:100%;height:auto;border-radius:8px">';
     }
 
     const modal = document.createElement('div');
