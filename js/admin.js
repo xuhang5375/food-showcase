@@ -181,7 +181,7 @@ async function saveProduct() {
     var priceNum = document.getElementById('productPriceNum').value.trim();
     var unit = document.getElementById('productPriceUnit').value || '箱';
     var code = document.getElementById('productCode').value.trim();
-    var spec = document.getElementById('productSpec').value.trim();
+    var specification = document.getElementById('productSpec').value.trim();
     var priceStr = priceNum ? priceNum + '/' + unit : '';
 
     var btn = document.querySelector('.btn-save');
@@ -211,7 +211,7 @@ async function saveProduct() {
             category: category,
             price: priceStr,
             code: code || null,
-            spec: spec || null,
+            specification: specification || null,
             image_url: imageUrl || null,
             video_url: videoUrl || null
         };
@@ -247,7 +247,7 @@ async function editProduct(id) {
         document.getElementById('productDesc').value = data.description || '';
         document.getElementById('productCategory').value = data.category || '黑千层';
         document.getElementById('productCode').value = data.code || '';
-        document.getElementById('productSpec').value = data.spec || '';
+        document.getElementById('productSpec').value = data.specification || '';
 
         if (data.price) {
             var pp = data.price.split('/');
