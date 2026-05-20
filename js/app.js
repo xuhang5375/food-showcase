@@ -12,7 +12,29 @@ let currentCategory = 'all';
 let searchKeyword = '';
 
 // ---- 初始化 ----
+// 等待 window.supabase 初始化完成（module 异步加载）
+function waitForSupabase() {
+    return new Promise((resolve) => {
+        if (window.supabase) {
+            resolve();
+        } else {
+            const check = setInterval(() => {
+                if (window.supabase) {
+                    clearInterval(check);
+                    resolve();
+                }
+            }, 50);
+            // 超时 5 秒后放弃
+            setTimeout(() => {
+                clearInterval(check);
+                console.error('Supabase 初始化超时');
+            }, 5000);
+        }
+    });
+}
+
 (async function init() {
+    await waitForSupabase();
     await loadProducts();
     buildCategoryNav();
     renderProducts();
