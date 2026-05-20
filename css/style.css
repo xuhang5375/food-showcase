@@ -543,13 +543,26 @@ body {
 
 .preview-area {
     margin-top: 8px;
+    text-align: center;
 }
 
-.preview-area img,
+.preview-area img {
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+    max-height: 200px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #f5f5f5;
+}
+
 .preview-area video {
-    max-width: 150px;
-    max-height: 100px;
-    border-radius: 6px;
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+    max-height: 200px;
+    border-radius: 8px;
+    background: #000;
 }
 
 .upload-tip {
