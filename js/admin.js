@@ -1,6 +1,6 @@
 // ========================================
 // food-showcase 管理后台逻辑
-// 支持多图上传
+// 支持多图上传 + 上传进度
 // ========================================
 
 function getSupabase() { return window.supabase; }
@@ -10,7 +10,7 @@ var BUCKET_NAME = window.BUCKET_NAME || 'product-media';
 
 let isLoggedIn = false;
 let editingId = null;
-let currentImages = [];  // 多图数组
+let currentImages = [];
 let currentVideoFile = null;
 
 // ---- 等待 Supabase 初始化 ----
@@ -55,7 +55,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 绑定文件上传事件
     var imageFile = document.getElementById('imageFile');
     if (imageFile) imageFile.addEventListener('change', handleImageUpload);
     var videoFile = document.getElementById('videoFile');
@@ -63,12 +62,36 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ---- Toast ----
-function showToast(msg) {
+function showToast(msg, duration) {
+    duration = duration || 2000;
     var t = document.getElementById('toast');
-    if (!t) { t = document.createElement('div'); t.id = 'toast'; t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 24px;border-radius:8px;z-index:9999;transition:opacity .3s'; document.body.appendChild(t); }
+    if (!t) { 
+        t = document.createElement('div'); 
+        t.id = 'toast'; 
+        t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 24px;border-radius:8px;z-index:9999;transition:opacity .3s;max-width:80%;word-break:break-all'; 
+        document.body.appendChild(t); 
+    }
     t.textContent = msg;
     t.style.opacity = '1';
-    setTimeout(function() { t.style.opacity = '0'; }, 2000);
+    setTimeout(function() { t.style.opacity = '0'; }, duration);
+}
+
+// ---- 显示上传进度 ----
+function showProgress(msg) {
+    var t = document.getElementById('progressToast');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'progressToast';
+        t.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#2196F3;color:#fff;padding:12px 24px;border-radius:8px;z-index:9998;max-width:80%;word-break:break-all';
+        document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.display = 'block';
+}
+
+function hideProgress() {
+    var t = document.getElementById('progressToast');
+    if (t) t.style.display = 'none';
 }
 
 // ---- 加载商品列表 ----
@@ -88,7 +111,6 @@ async function loadProducts() {
                 var pp = String(p.price).split('/');
                 priceText = pp[0] ? (pp[1] ? pp[0] + '/' + pp[1] : pp[0]) : '-';
             }
-            // 多图取第一张
             var firstImg = '';
             if (Array.isArray(p.images) && p.images.length > 0) {
                 firstImg = p.images[0];
@@ -146,8 +168,7 @@ function handleImageUpload(event) {
     var files = event.target.files;
     if (!files || files.length === 0) return;
     
-    currentImages = [];  // 重置
-    
+    currentImages = [];
     var previewHtml = '';
     var loadedCount = 0;
     
@@ -160,7 +181,6 @@ function handleImageUpload(event) {
                     dataUrl: e.target.result
                 });
                 
-                // 生成预览
                 previewHtml += '<div style="position:relative;display:inline-block;margin:4px">' +
                     '<img src="' + e.target.result + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px">' +
                     '<button onclick="removeImage(' + index + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button>' +
@@ -177,10 +197,8 @@ function handleImageUpload(event) {
     }
 }
 
-// 移除单张图片
 function removeImage(index) {
     currentImages.splice(index, 1);
-    // 重新渲染预览
     var html = '';
     currentImages.forEach(function(img, i) {
         html += '<div style="position:relative;display:inline-block;margin:4px">' +
@@ -206,29 +224,63 @@ function handleVideoUpload(event) {
     document.getElementById('videoUploadText').textContent = '✅ 已选择视频: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB';
 }
 
-// ---- 上传文件到 Supabase Storage ----
+// ---- 上传文件到 Supabase Storage（带进度）----
 async function uploadToStorage(file, folder) {
     var ext = file.name.split('.').pop();
     var path = folder + '/' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '.' + ext;
+    var fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
     
-    console.log('开始上传:', path, '文件大小:', (file.size / 1024).toFixed(1), 'KB');
+    console.log('开始上传:', path, '文件大小:', fileSizeMB, 'MB');
+    showProgress('正在上传 ' + fileSizeMB + 'MB，请稍候...');
     
     try {
-        var { data, error } = await getSupabase().storage.from(BUCKET_NAME).upload(path, file, { 
-            cacheControl: '3600', 
-            upsert: false 
+        // 使用 XMLHttpRequest 来支持上传进度
+        return await new Promise((resolve, reject) => {
+            var xhr = new XMLHttpRequest();
+            var url = getSupabase().supabaseUrl + '/storage/v1/object/' + BUCKET_NAME + '/' + path;
+            
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    var percent = Math.round((e.loaded / e.total) * 100);
+                    showProgress('上传中 ' + percent + '% (' + fileSizeMB + 'MB)');
+                }
+            });
+            
+            xhr.addEventListener('load', function() {
+                hideProgress();
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        console.log('上传成功:', response);
+                        var publicUrl = getSupabase().supabaseUrl + '/storage/v1/object/public/' + BUCKET_NAME + '/' + path;
+                        resolve(publicUrl);
+                    } catch (e) {
+                        reject(new Error('解析响应失败'));
+                    }
+                } else {
+                    console.error('上传失败:', xhr.status, xhr.responseText);
+                    reject(new Error('上传失败: ' + xhr.status));
+                }
+            });
+            
+            xhr.addEventListener('error', function() {
+                hideProgress();
+                reject(new Error('网络错误，上传失败'));
+            });
+            
+            xhr.addEventListener('timeout', function() {
+                hideProgress();
+                reject(new Error('上传超时，请检查网络'));
+            });
+            
+            xhr.open('POST', url);
+            xhr.setRequestHeader('apikey', getSupabase().supabaseKey);
+            xhr.setRequestHeader('Authorization', 'Bearer ' + getSupabase().supabaseKey);
+            xhr.timeout = 120000; // 2分钟超时
+            xhr.send(file);
         });
-        
-        if (error) { 
-            console.error('Storage upload error:', error); 
-            return null; 
-        }
-        
-        console.log('上传成功:', data);
-        
-        var { data: publicUrl } = getSupabase().storage.from(BUCKET_NAME).getPublicUrl(path);
-        return publicUrl.publicUrl || publicUrl;
     } catch (e) {
+        hideProgress();
         console.error('Storage upload exception:', e);
         return null;
     }
@@ -252,6 +304,7 @@ async function saveProduct() {
 
     try {
         // 上传所有图片
+        showProgress('准备上传图片...');
         var imageUrls = [];
         for (var i = 0; i < currentImages.length; i++) {
             var img = currentImages[i];
@@ -281,6 +334,8 @@ async function saveProduct() {
             }
         }
 
+        hideProgress();
+
         var body = {
             name: name,
             description: desc,
@@ -304,10 +359,14 @@ async function saveProduct() {
             error = result.error;
         }
 
-        if (error) { alert('保存失败: ' + error.message); return; }
+        if (error) { 
+            alert('保存失败: ' + error.message); 
+            return; 
+        }
         showToast(editingId ? '修改成功' : '添加成功');
         hideForm();
     } catch (e) {
+        hideProgress();
         console.error('保存异常:', e);
         alert('网络错误: ' + e.message);
     } finally {
