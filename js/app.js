@@ -1,6 +1,6 @@
 // ========================================
 // 食材采购 - 前台展示页逻辑
-// 左侧分类导航 + 右侧商品列表 + 搜索
+// 左侧分类导航 + 右侧商品列表 + 搜索 + 多图轮播
 // ========================================
 
 function getSupabase() { return window.supabase; }
@@ -12,7 +12,6 @@ let currentCategory = 'all';
 let searchKeyword = '';
 
 // ---- 初始化 ----
-// 等待 window.supabase 初始化完成（module 异步加载）
 function waitForSupabase() {
     return new Promise((resolve) => {
         if (window.supabase) {
@@ -24,7 +23,6 @@ function waitForSupabase() {
                     resolve();
                 }
             }, 50);
-            // 超时 5 秒后放弃
             setTimeout(() => {
                 clearInterval(check);
                 console.error('Supabase 初始化超时');
@@ -171,12 +169,32 @@ function renderProducts() {
             priceText = pp[0] ? (pp[1] ? pp[0] + '/元' + pp[1] : pp[0]) : '-';
         }
 
-        let coverHtml = p.image_url
-            ? '<img src="' + p.image_url + '" onerror="this.style.display=\'none\'">'
+        // 获取第一张图片作为封面
+        let firstImg = '';
+        if (Array.isArray(p.images) && p.images.length > 0) {
+            firstImg = p.images[0];
+        } else if (p.image_url) {
+            firstImg = p.image_url;
+        }
+        
+        let coverHtml = firstImg
+            ? '<img src="' + firstImg + '" onerror="this.style.display=\'none\'">'
             : '<div class="no-image">📦</div>';
 
+        // 多图标记
+        let multiBadge = '';
+        if (Array.isArray(p.images) && p.images.length > 1) {
+            multiBadge = '<div class="multi-badge">' + p.images.length + '图</div>';
+        }
+
+        // 视频标记
+        let videoBadge = '';
+        if (p.video_url) {
+            videoBadge = '<div class="video-badge">▶</div>';
+        }
+
         html += '<div class="product-card" data-id="' + p.id + '">' +
-            '<div class="product-cover">' + coverHtml + '</div>' +
+            '<div class="product-cover">' + coverHtml + multiBadge + videoBadge + '</div>' +
             '<div class="product-info">' +
             '<div class="product-name">' + (p.name || '未命名') + '</div>' +
             '<div class="product-meta">' +
@@ -233,11 +251,57 @@ function showProductDetail(product) {
         priceText = pp[0] ? (pp[1] ? pp[0] + '/元' + pp[1] : pp[0]) : '-';
     }
 
-    let mediaHtml = '';
-    if (product.video_url) {
-        mediaHtml = '<video src="' + product.video_url + '" controls playsinline preload="metadata" style="width:100%;max-height:300px;border-radius:8px;background:#000"></video>';
+    // 收集所有媒体
+    let allMedia = [];
+    
+    // 多图
+    if (Array.isArray(product.images) && product.images.length > 0) {
+        product.images.forEach(url => {
+            allMedia.push({ type: 'image', url: url });
+        });
     } else if (product.image_url) {
-        mediaHtml = '<img src="' + product.image_url + '" style="width:100%;max-width:100%;height:auto;border-radius:8px">';
+        allMedia.push({ type: 'image', url: product.image_url });
+    }
+    
+    // 视频
+    if (product.video_url) {
+        allMedia.push({ type: 'video', url: product.video_url });
+    }
+
+    // 构建媒体区域
+    let mediaHtml = '';
+    if (allMedia.length > 0) {
+        // 多图轮播
+        if (allMedia.length > 1) {
+            let slidesHtml = '';
+            let dotsHtml = '';
+            allMedia.forEach((media, i) => {
+                let slideContent = '';
+                if (media.type === 'video') {
+                    slideContent = '<video src="' + media.url + '" controls playsinline preload="metadata" style="width:100%;height:200px;object-fit:contain;background:#000;border-radius:8px"></video>';
+                } else {
+                    slideContent = '<img src="' + media.url + '" style="width:100%;height:200px;object-fit:contain;background:#f5f5f5;border-radius:8px">';
+                }
+                slidesHtml += '<div class="carousel-slide" data-index="' + i + '" style="display:' + (i === 0 ? 'block' : 'none') + '">' + slideContent + '</div>';
+                dotsHtml += '<span class="carousel-dot' + (i === 0 ? ' active' : '') + '" data-index="' + i + '"></span>';
+            });
+            
+            mediaHtml = '<div class="carousel-container" style="position:relative;margin-bottom:12px">' +
+                slidesHtml +
+                '<div class="carousel-dots" style="text-align:center;margin-top:8px">' + dotsHtml + '</div>' +
+                '</div>';
+        } else {
+            // 单图或单视频
+            if (allMedia[0].type === 'video') {
+                mediaHtml = '<div style="margin-bottom:12px">' +
+                    '<video src="' + allMedia[0].url + '" controls playsinline preload="metadata" style="width:100%;max-height:300px;border-radius:8px;background:#000"></video>' +
+                    '</div>';
+            } else {
+                mediaHtml = '<div style="margin-bottom:12px">' +
+                    '<img src="' + allMedia[0].url + '" style="width:100%;max-width:100%;height:auto;border-radius:8px">' +
+                    '</div>';
+            }
+        }
     }
 
     const modal = document.createElement('div');
@@ -248,12 +312,30 @@ function showProductDetail(product) {
         '<h3 style="margin:0;font-size:18px">' + (product.name || '商品详情') + '</h3>' +
         '<button onclick="document.getElementById(\'detailModal\').remove()" style="border:none;background:#eee;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>' +
         '</div>' +
-        (mediaHtml ? '<div style="margin-bottom:12px">' + mediaHtml + '</div>' : '') +
+        mediaHtml +
         '<div style="color:#888;font-size:13px;margin-bottom:6px">分类: ' + (product.category || '未分类') + '</div>' +
         '<div style="color:#f60;font-size:20px;font-weight:600;margin-bottom:8px">' + priceText + '</div>' +
         (product.code ? '<div style="color:#888;font-size:12px">编码: ' + product.code + '</div>' : '') +
         (product.description ? '<div style="color:#666;font-size:14px;margin-top:12px;line-height:1.5">' + product.description + '</div>' : '') +
         '</div>';
+
+    // 轮播事件
+    if (allMedia.length > 1) {
+        modal.querySelectorAll('.carousel-dot').forEach(dot => {
+            dot.style.cssText = 'display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;margin:0 4px;cursor:pointer';
+            dot.addEventListener('click', function() {
+                const idx = parseInt(this.dataset.index);
+                modal.querySelectorAll('.carousel-slide').forEach((s, i) => {
+                    s.style.display = i === idx ? 'block' : 'none';
+                });
+                modal.querySelectorAll('.carousel-dot').forEach((d, i) => {
+                    d.style.background = i === idx ? '#f60' : '#ccc';
+                });
+            });
+        });
+        // 默认激活第一个点
+        modal.querySelector('.carousel-dot').style.background = '#f60';
+    }
 
     modal.addEventListener('click', function(e) {
         if (e.target === modal) modal.remove();
