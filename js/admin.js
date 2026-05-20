@@ -1,6 +1,6 @@
 // ========================================
 // food-showcase 管理后台逻辑
-// 支持多图上传 + 上传进度
+// 修复：编辑时保留已有图片/视频
 // ========================================
 
 function getSupabase() { return window.supabase; }
@@ -10,8 +10,10 @@ var BUCKET_NAME = window.BUCKET_NAME || 'product-media';
 
 let isLoggedIn = false;
 let editingId = null;
-let currentImages = [];
-let currentVideoFile = null;
+let existingImageUrls = [];  // 已有图片URL（编辑时保留）
+let newImageFiles = [];      // 新上传的图片文件
+let existingVideoUrl = null;  // 已有视频URL（编辑时保留）
+let newVideoFile = null;      // 新上传的视频文件
 
 // ---- 等待 Supabase 初始化 ----
 function waitForSupabase() {
@@ -68,7 +70,7 @@ function showToast(msg, duration) {
     if (!t) { 
         t = document.createElement('div'); 
         t.id = 'toast'; 
-        t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 24px;border-radius:8px;z-index:9999;transition:opacity .3s;max-width:80%;word-break:break-all'; 
+        t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 24px;border-radius:8px;z-index:9999;transition:opacity .3s'; 
         document.body.appendChild(t); 
     }
     t.textContent = msg;
@@ -139,8 +141,11 @@ async function loadProducts() {
 // ---- 显示/隐藏表单 ----
 function showAddForm() {
     editingId = null;
-    currentImages = [];
-    currentVideoFile = null;
+    existingImageUrls = [];
+    newImageFiles = [];
+    existingVideoUrl = null;
+    newVideoFile = null;
+    
     document.getElementById('formTitle').textContent = '添加商品';
     document.getElementById('productName').value = '';
     document.getElementById('productDesc').value = '';
@@ -168,46 +173,56 @@ function handleImageUpload(event) {
     var files = event.target.files;
     if (!files || files.length === 0) return;
     
-    currentImages = [];
-    var previewHtml = '';
-    var loadedCount = 0;
-    
     for (var i = 0; i < files.length; i++) {
-        (function(file, index) {
+        (function(file) {
             var reader = new FileReader();
             reader.onload = function(e) {
-                currentImages.push({
+                newImageFiles.push({
                     file: file,
-                    dataUrl: e.target.result
+                    previewUrl: e.target.result
                 });
-                
-                previewHtml += '<div style="position:relative;display:inline-block;margin:4px">' +
-                    '<img src="' + e.target.result + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px">' +
-                    '<button onclick="removeImage(' + index + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button>' +
-                    '</div>';
-                
-                loadedCount++;
-                if (loadedCount === files.length) {
-                    document.getElementById('imagePreview').innerHTML = previewHtml;
-                    document.getElementById('imageUploadText').textContent = '✅ 已选择 ' + files.length + ' 张图片';
-                }
+                renderImagePreview();
             };
             reader.readAsDataURL(file);
-        })(files[i], i);
+        })(files[i]);
     }
+    
+    document.getElementById('imageUploadText').textContent = '✅ 已选择 ' + newImageFiles.length + ' 张新图片';
 }
 
-function removeImage(index) {
-    currentImages.splice(index, 1);
+function renderImagePreview() {
     var html = '';
-    currentImages.forEach(function(img, i) {
+    
+    // 已有图片
+    existingImageUrls.forEach(function(url, i) {
         html += '<div style="position:relative;display:inline-block;margin:4px">' +
-            '<img src="' + img.dataUrl + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px">' +
-            '<button onclick="removeImage(' + i + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button>' +
+            '<img src="' + url + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px">' +
+            '<button onclick="removeExistingImage(' + i + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button>' +
             '</div>';
     });
+    
+    // 新图片
+    newImageFiles.forEach(function(img, i) {
+        html += '<div style="position:relative;display:inline-block;margin:4px">' +
+            '<img src="' + img.previewUrl + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px">' +
+            '<button onclick="removeNewImage(' + i + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button>' +
+            '<div style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.5);color:#fff;font-size:10px;padding:1px 4px;border-radius:3px">新</div>' +
+            '</div>';
+    });
+    
     document.getElementById('imagePreview').innerHTML = html;
-    document.getElementById('imageUploadText').textContent = currentImages.length > 0 ? '✅ 已选择 ' + currentImages.length + ' 张图片' : '📷 点击上传图片（可多选）';
+    var total = existingImageUrls.length + newImageFiles.length;
+    document.getElementById('imageUploadText').textContent = total > 0 ? '✅ 共 ' + total + ' 张图片' : '📷 点击上传图片（可多选）';
+}
+
+function removeExistingImage(index) {
+    existingImageUrls.splice(index, 1);
+    renderImagePreview();
+}
+
+function removeNewImage(index) {
+    newImageFiles.splice(index, 1);
+    renderImagePreview();
 }
 
 // ---- 视频上传 ----
@@ -215,13 +230,51 @@ function handleVideoUpload(event) {
     var file = event.target.files[0];
     if (!file) return;
     
-    currentVideoFile = file;
+    newVideoFile = file;
     var url = URL.createObjectURL(file);
     
-    console.log('视频文件:', file.name, '大小:', (file.size / 1024 / 1024).toFixed(2), 'MB', '类型:', file.type);
+    var videoHtml = '<video src="' + url + '" style="width:100%;max-width:300px;height:auto;max-height:200px;border-radius:8px;background:#000" controls playsinline></video>';
+    if (existingVideoUrl) {
+        videoHtml += '<div style="margin-top:8px;display:flex;gap:8px">' +
+            '<button onclick="restoreExistingVideo()" style="padding:4px 12px;background:#2196F3;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">恢复原有视频</button>' +
+            '<button onclick="removeNewVideo()" style="padding:4px 12px;background:#ff4444;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">删除新视频</button>' +
+            '</div>';
+    } else {
+        videoHtml += '<div style="margin-top:8px">' +
+            '<button onclick="removeNewVideo()" style="padding:4px 12px;background:#ff4444;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">删除视频</button>' +
+            '</div>';
+    }
     
-    document.getElementById('videoPreview').innerHTML = '<video src="' + url + '" style="width:100%;max-width:300px;height:auto;max-height:200px;border-radius:8px;background:#000" controls playsinline></video>';
-    document.getElementById('videoUploadText').textContent = '✅ 已选择视频: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB';
+    document.getElementById('videoPreview').innerHTML = videoHtml;
+    document.getElementById('videoUploadText').textContent = '✅ 已选择新视频: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB';
+}
+
+function removeNewVideo() {
+    newVideoFile = null;
+    if (existingVideoUrl) {
+        restoreExistingVideo();
+    } else {
+        document.getElementById('videoPreview').innerHTML = '';
+        document.getElementById('videoUploadText').textContent = '🎬 点击上传视频';
+    }
+}
+
+function restoreExistingVideo() {
+    newVideoFile = null;
+    document.getElementById('videoPreview').innerHTML = 
+        '<video src="' + existingVideoUrl + '" style="width:100%;max-width:300px;height:auto;max-height:200px;border-radius:8px;background:#000" controls playsinline></video>' +
+        '<div style="margin-top:8px;display:flex;gap:8px">' +
+        '<button onclick="removeExistingVideo()" style="padding:4px 12px;background:#ff4444;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">删除视频</button>' +
+        '<button onclick="document.getElementById(\'videoFile\').click()" style="padding:4px 12px;background:#2196F3;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">更换视频</button>' +
+        '</div>';
+    document.getElementById('videoUploadText').textContent = '✅ 使用原有视频';
+}
+
+function removeExistingVideo() {
+    existingVideoUrl = null;
+    newVideoFile = null;
+    document.getElementById('videoPreview').innerHTML = '';
+    document.getElementById('videoUploadText').textContent = '🎬 点击上传视频';
 }
 
 // ---- 上传文件到 Supabase Storage（带进度）----
@@ -234,7 +287,6 @@ async function uploadToStorage(file, folder) {
     showProgress('正在上传 ' + fileSizeMB + 'MB，请稍候...');
     
     try {
-        // 使用 XMLHttpRequest 来支持上传进度
         return await new Promise((resolve, reject) => {
             var xhr = new XMLHttpRequest();
             var url = getSupabase().supabaseUrl + '/storage/v1/object/' + BUCKET_NAME + '/' + path;
@@ -276,7 +328,7 @@ async function uploadToStorage(file, folder) {
             xhr.open('POST', url);
             xhr.setRequestHeader('apikey', getSupabase().supabaseKey);
             xhr.setRequestHeader('Authorization', 'Bearer ' + getSupabase().supabaseKey);
-            xhr.timeout = 120000; // 2分钟超时
+            xhr.timeout = 120000;
             xhr.send(file);
         });
     } catch (e) {
@@ -303,38 +355,27 @@ async function saveProduct() {
     if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
 
     try {
-        // 上传所有图片
-        showProgress('准备上传图片...');
-        var imageUrls = [];
-        for (var i = 0; i < currentImages.length; i++) {
-            var img = currentImages[i];
-            var fileToUpload;
-            
-            if (img.file) {
-                fileToUpload = img.file;
-            } else if (img.dataUrl && img.dataUrl.startsWith('data:')) {
-                var imgBlob = await fetch(img.dataUrl).then(function(r) { return r.blob(); });
-                fileToUpload = new File([imgBlob], 'image.jpg', { type: 'image/jpeg' });
-            }
-            
-            if (fileToUpload) {
-                var uploadedUrl = await uploadToStorage(fileToUpload, 'images');
+        // 合并已有图片 + 新上传图片
+        var imageUrls = [...existingImageUrls];
+        
+        if (newImageFiles.length > 0) {
+            showProgress('上传 ' + newImageFiles.length + ' 张图片...');
+            for (var i = 0; i < newImageFiles.length; i++) {
+                showProgress('上传图片 ' + (i + 1) + '/' + newImageFiles.length + '...');
+                var uploadedUrl = await uploadToStorage(newImageFiles[i].file, 'images');
                 if (uploadedUrl) imageUrls.push(uploadedUrl);
             }
-        }
-        
-        // 上传视频
-        var videoUrl = '';
-        if (currentVideoFile) {
-            console.log('开始上传视频...');
-            videoUrl = await uploadToStorage(currentVideoFile, 'videos');
-            console.log('视频上传结果:', videoUrl);
-            if (!videoUrl) {
-                alert('视频上传失败，请检查文件大小或格式');
-            }
+            hideProgress();
         }
 
-        hideProgress();
+        // 视频：保留已有 or 上传新视频
+        var videoUrl = existingVideoUrl || null;
+        if (newVideoFile) {
+            showProgress('上传视频...');
+            var uploadedVideoUrl = await uploadToStorage(newVideoFile, 'videos');
+            if (uploadedVideoUrl) videoUrl = uploadedVideoUrl;
+            hideProgress();
+        }
 
         var body = {
             name: name,
@@ -397,30 +438,28 @@ async function editProduct(id) {
             document.getElementById('productPriceUnit').value = '箱';
         }
 
-        // 多图预览
-        currentImages = [];
-        var imgPreviewHtml = '';
-        
+        // 加载已有图片
+        existingImageUrls = [];
+        newImageFiles = [];
         if (Array.isArray(data.images) && data.images.length > 0) {
-            data.images.forEach(function(url, i) {
-                currentImages.push({ url: url });
-                imgPreviewHtml += '<div style="position:relative;display:inline-block;margin:4px">' +
-                    '<img src="' + url + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px">' +
-                    '<button onclick="removeImage(' + i + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button>' +
-                    '</div>';
-            });
+            existingImageUrls = [...data.images];
         } else if (data.image_url) {
-            currentImages.push({ url: data.image_url });
-            imgPreviewHtml = '<img src="' + data.image_url + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px">';
+            existingImageUrls = [data.image_url];
         }
         
-        document.getElementById('imagePreview').innerHTML = imgPreviewHtml;
-        document.getElementById('imageUploadText').textContent = currentImages.length > 0 ? '✅ 已有 ' + currentImages.length + ' 张图片' : '📷 点击上传图片（可多选）';
+        // 加载已有视频
+        existingVideoUrl = data.video_url || null;
+        newVideoFile = null;
+        
+        renderImagePreview();
         
         // 视频预览
-        currentVideoFile = null;
-        document.getElementById('videoPreview').innerHTML = data.video_url ? '<video src="' + data.video_url + '" style="width:100%;max-width:300px;height:auto;max-height:200px;border-radius:8px;background:#000" controls playsinline></video>' : '';
-        document.getElementById('videoUploadText').textContent = data.video_url ? '✅ 已有视频' : '🎬 点击上传视频';
+        if (existingVideoUrl) {
+            restoreExistingVideo();
+        } else {
+            document.getElementById('videoPreview').innerHTML = '';
+            document.getElementById('videoUploadText').textContent = '🎬 点击上传视频';
+        }
 
         document.getElementById('productForm').style.display = 'block';
         document.getElementById('productList').style.display = 'none';
