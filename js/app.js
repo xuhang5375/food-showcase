@@ -316,6 +316,7 @@ function showProductDetail(product) {
         '<div style="color:#888;font-size:13px;margin-bottom:6px">分类: ' + (product.category || '未分类') + '</div>' +
         '<div style="color:#f60;font-size:20px;font-weight:600;margin-bottom:8px">' + priceText + '</div>' +
         (product.code ? '<div style="color:#888;font-size:12px">编码: ' + product.code + '</div>' : '') +
+                (product.specification ? '<div style="color:#666;font-size:13px;margin-top:4px">规格: ' + product.specification + '</div>' : '') +
         (product.description ? '<div style="color:#666;font-size:14px;margin-top:12px;line-height:1.5">' + product.description + '</div>' : '') +
         '</div>';
 
