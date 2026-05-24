@@ -1,4 +1,4 @@
-// ========================================
+﻿// ========================================
 // 食材采购 - 前台展示页逻辑
 // 左侧分类导航 + 右侧商品列表 + 搜索 + 多图轮播
 // ========================================
@@ -240,7 +240,6 @@ function bindEvents() {
     });
 }
 
-// ---- 显示商品详情（弹窗） ----
 function showProductDetail(product) {
     // 移除已有弹窗
     const existing = document.getElementById('detailModal');
@@ -254,17 +253,11 @@ function showProductDetail(product) {
 
     // 收集所有媒体
     let allMedia = [];
-    
-    // 多图
     if (Array.isArray(product.images) && product.images.length > 0) {
-        product.images.forEach(url => {
-            allMedia.push({ type: 'image', url: url });
-        });
+        product.images.forEach(url => { allMedia.push({ type: 'image', url: url }); });
     } else if (product.image_url) {
         allMedia.push({ type: 'image', url: product.image_url });
     }
-    
-    // 视频
     if (product.video_url) {
         allMedia.push({ type: 'video', url: product.video_url });
     }
@@ -272,7 +265,6 @@ function showProductDetail(product) {
     // 构建媒体区域
     let mediaHtml = '';
     if (allMedia.length > 0) {
-        // 多图轮播
         if (allMedia.length > 1) {
             let slidesHtml = '';
             let dotsHtml = '';
@@ -284,23 +276,20 @@ function showProductDetail(product) {
                     slideContent = '<img src="' + media.url + '" style="width:100%;height:200px;object-fit:contain;background:#f5f5f5;border-radius:8px">';
                 }
                 slidesHtml += '<div class="carousel-slide" data-index="' + i + '" style="display:' + (i === 0 ? 'block' : 'none') + '">' + slideContent + '</div>';
-                dotsHtml += '<span class="carousel-dot' + (i === 0 ? ' active' : '') + '" data-index="' + i + '"></span>';
+                dotsHtml += '<span class="carousel-dot" data-index="' + i + '" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + (i === 0 ? '#f60' : '#ccc') + ';margin:0 4px;cursor:pointer"></span>';
             });
-            
-            mediaHtml = '<div class="carousel-container" style="position:relative;margin-bottom:12px">' +
+            mediaHtml = '<div class="carousel-container" style="position:relative;margin-bottom:12px" id="carouselContainer">' +
                 slidesHtml +
+                '<button class="carousel-prev" onclick="carouselGo(-1)" style="position:absolute;left:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;opacity:0.7">‹</button>' +
+                '<button class="carousel-next" onclick="carouselGo(1)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;opacity:0.7">›</button>' +
+                '<div class="carousel-counter" style="position:absolute;right:8px;top:8px;background:rgba(0,0,0,0.55);color:#fff;font-size:12px;padding:2px 7px;border-radius:10px;z-index:2">1/' + allMedia.length + '</div>' +
                 '<div class="carousel-dots" style="text-align:center;margin-top:8px">' + dotsHtml + '</div>' +
                 '</div>';
         } else {
-            // 单图或单视频
             if (allMedia[0].type === 'video') {
-                mediaHtml = '<div style="margin-bottom:12px">' +
-                    '<video src="' + allMedia[0].url + '" controls playsinline preload="metadata" style="width:100%;max-height:300px;border-radius:8px;background:#000"></video>' +
-                    '</div>';
+                mediaHtml = '<div style="margin-bottom:12px"><video src="' + allMedia[0].url + '" controls playsinline preload="metadata" style="width:100%;max-height:300px;border-radius:8px;background:#000"></video></div>';
             } else {
-                mediaHtml = '<div style="margin-bottom:12px">' +
-                    '<img src="' + allMedia[0].url + '" style="width:100%;max-width:100%;height:auto;border-radius:8px">' +
-                    '</div>';
+                mediaHtml = '<div style="margin-bottom:12px"><img src="' + allMedia[0].url + '" style="width:100%;max-width:100%;height:auto;border-radius:8px"></div>';
             }
         }
     }
@@ -312,35 +301,61 @@ function showProductDetail(product) {
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
         '<h3 style="margin:0;font-size:18px">' + (product.name || '商品详情') + '</h3>' +
         '<button onclick="document.getElementById(\'detailModal\').remove()" style="border:none;background:#eee;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>' +
-        '</div>' +
-        mediaHtml +
+        '</div>' + mediaHtml +
         '<div style="color:#888;font-size:13px;margin-bottom:6px">分类: ' + (product.category || '未分类') + '</div>' +
         '<div style="color:#f60;font-size:20px;font-weight:600;margin-bottom:8px">' + priceText + '</div>' +
         (product.code ? '<div style="color:#888;font-size:12px">编码: ' + product.code + '</div>' : '') +
-                (product.specification ? '<div style="color:#666;font-size:13px;margin-top:4px">规格: ' + product.specification + '</div>' : '') +
+        (product.specification ? '<div style="color:#666;font-size:13px;margin-top:4px">规格: ' + product.specification + '</div>' : '') +
         (product.description ? '<div style="color:#666;font-size:14px;margin-top:12px;line-height:1.5">' + product.description + '</div>' : '') +
         '</div>';
 
-    // 轮播事件
+    // 圆点点击 + 触摸滑动（统一用 carouselShow）
     if (allMedia.length > 1) {
         modal.querySelectorAll('.carousel-dot').forEach(dot => {
-            dot.style.cssText = 'display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;margin:0 4px;cursor:pointer';
-            dot.addEventListener('click', function() {
-                const idx = parseInt(this.dataset.index);
-                modal.querySelectorAll('.carousel-slide').forEach((s, i) => {
-                    s.style.display = i === idx ? 'block' : 'none';
-                });
-                modal.querySelectorAll('.carousel-dot').forEach((d, i) => {
-                    d.style.background = i === idx ? '#f60' : '#ccc';
-                });
-            });
+            dot.addEventListener('click', function() { carouselShow(parseInt(this.dataset.index)); });
         });
-        // 默认激活第一个点
-        modal.querySelector('.carousel-dot').style.background = '#f60';
+        _carouselIndex = 0;
+        carouselShow(0);
+        const carouselEl = modal.querySelector('#carouselContainer');
+        if (carouselEl) {
+            let startX = 0;
+            carouselEl.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, {passive:true});
+            carouselEl.addEventListener('touchend', (e) => {
+                const diff = startX - e.changedTouches[0].clientX;
+                if (Math.abs(diff) > 40) carouselGo(diff > 0 ? 1 : -1);
+            }, {passive:true});
+        }
     }
 
     modal.addEventListener('click', function(e) {
         if (e.target === modal) modal.remove();
     });
     document.body.appendChild(modal);
+}
+}
+
+// ---- 轮播导航（全局函数，供箭头按钮和滑动调用） ----
+let _carouselIndex = 0;
+
+function carouselShow(idx) {
+    const slides = document.querySelectorAll('#detailModal .carousel-slide');
+    const dots = document.querySelectorAll('#detailModal .carousel-dot');
+    const counter = document.querySelector('#detailModal .carousel-counter');
+    if (!slides.length) return;
+    _carouselIndex = idx;
+    slides.forEach((s, i) => s.style.display = i === idx ? 'block' : 'none');
+    dots.forEach((d, i) => { d.style.background = i === idx ? '#f60' : '#ccc'; });
+    if (counter) counter.textContent = (idx + 1) + '/' + slides.length;
+    const prevBtn = document.querySelector('#detailModal .carousel-prev');
+    const nextBtn = document.querySelector('#detailModal .carousel-next');
+    if (prevBtn) prevBtn.style.opacity = idx === 0 ? '0.3' : '0.7';
+    if (nextBtn) nextBtn.style.opacity = idx === slides.length - 1 ? '0.3' : '0.7';
+}
+
+function carouselGo(dir) {
+    const slides = document.querySelectorAll('#detailModal .carousel-slide');
+    if (!slides.length) return;
+    let idx = _carouselIndex + dir;
+    if (idx < 0 || idx >= slides.length) return;
+    carouselShow(idx);
 }
