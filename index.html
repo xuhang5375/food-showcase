@@ -41,13 +41,11 @@
         </div>
     </div>
 
-    <script type="module">
-        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
+    <script src="js/supabase-full.js"></script>
+    <script>
         const SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
-
-        window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         window.TABLE_NAME = 'food_showcase_products';
     </script>
     <script src="js/app.js"></script>
