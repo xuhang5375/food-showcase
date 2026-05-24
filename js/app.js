@@ -201,6 +201,7 @@ function renderProducts() {
             '<span class="product-category">' + (p.category || '未分类') + '</span>' +
             '</div>' +
             '<div class="product-price">' + priceText + '</div>' +
+            (p.specification ? '<div class="product-spec" style="color:#666;font-size:12px;margin-top:2px">' + p.specification + '</div>' : '') +
             '</div>' +
             '</div>';
     });
