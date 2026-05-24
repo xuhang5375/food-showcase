@@ -41,71 +41,77 @@ function waitForSupabase() {
 
 // ---- 加载商品数据 ----
 async function loadProducts() {
-    try {
-        const { data, error } = await getSupabase()
-            .from(TABLE_NAME)
-            .select('*')
-            .order('created_at', { ascending: true });
+    let lastError = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            const { data, error } = await getSupabase()
+                .from(TABLE_NAME)
+                .select('*')
+                .order('created_at', { ascending: true });
 
-        if (error) {
-            console.error('加载失败:', error);
-            document.getElementById('products').innerHTML =
-                '<div class="empty-state"><div class="empty-icon">⚠️</div><p>加载失败，请刷新重试</p></div>';
+            if (error) throw error;
+
+            allProducts = data || [];
+            if (allProducts.length === 0) {
+                document.getElementById('products').innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><p>暂无商品</p></div>';
+                return;
+            }
+
+            allProducts.sort((a, b) => {
+                const priceA = a.price ? parseFloat(a.price.split('/')[0]) || 0 : 0;
+                const priceB = b.price ? parseFloat(b.price.split('/')[0]) || 0 : 0;
+                return priceA - priceB;
+            });
+
+            const catSet = new Set();
+            const subMap = {};
+            allProducts.forEach(p => {
+                const cat = (p.category || '').trim();
+                if (!cat) return;
+                if (cat.includes('/')) {
+                    const parts = cat.split('/');
+                    const parent = parts[0].trim();
+                    const child = parts[1].trim();
+                    catSet.add(parent);
+                    if (!subMap[parent]) subMap[parent] = new Set();
+                    subMap[parent].add(child);
+                } else {
+                    catSet.add(cat);
+                }
+            });
+
+            categories = [{ name: 'all', label: '全部' }];
+            const parentOrder = ['毛肚系列', '千层系列', '黑千层', '白千层', '虾滑', '肉类', '其他'];
+            const sortedParents = Array.from(catSet).sort((a, b) => {
+                const ia = parentOrder.indexOf(a);
+                const ib = parentOrder.indexOf(b);
+                if (ia === -1 && ib === -1) return a.localeCompare(b, 'zh-CN');
+                if (ia === -1) return 1;
+                if (ib === -1) return -1;
+                return ia - ib;
+            });
+
+            sortedParents.forEach(parent => {
+                categories.push({ name: parent, label: parent });
+                if (subMap[parent]) {
+                    Array.from(subMap[parent]).forEach(sub => {
+                        categories.push({ name: parent + '/' + sub, label: sub, parent: parent });
+                    });
+                }
+            });
+
+            buildCategoryNav();
+            renderProducts();
             return;
+        } catch (e) {
+            lastError = e;
+            if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 1000));
         }
-
-        allProducts = data || [];
-
-        // 按价格数字部分排序（从低到高）
-        allProducts.sort((a, b) => {
-            const priceA = a.price ? parseFloat(a.price.split('/')[0]) || 0 : 0;
-            const priceB = b.price ? parseFloat(b.price.split('/')[0]) || 0 : 0;
-            return priceA - priceB;
-        });
-
-        // 从数据中提取分类
-        const catSet = new Set();
-        const subMap = {};
-        allProducts.forEach(p => {
-            const cat = (p.category || '').trim();
-            if (!cat) return;
-            if (cat.includes('/')) {
-                const parts = cat.split('/');
-                const parent = parts[0].trim();
-                const child = parts[1].trim();
-                catSet.add(parent);
-                if (!subMap[parent]) subMap[parent] = new Set();
-                subMap[parent].add(child);
-            } else {
-                catSet.add(cat);
-            }
-        });
-
-        categories = [{ name: 'all', label: '全部' }];
-        const parentOrder = ['毛肚系列', '千层系列', '黑千层', '白千层', '虾滑', '肉类', '其他'];
-        const sortedParents = Array.from(catSet).sort((a, b) => {
-            const ia = parentOrder.indexOf(a);
-            const ib = parentOrder.indexOf(b);
-            if (ia === -1 && ib === -1) return a.localeCompare(b, 'zh-CN');
-            if (ia === -1) return 1;
-            if (ib === -1) return -1;
-            return ia - ib;
-        });
-
-        sortedParents.forEach(parent => {
-            categories.push({ name: parent, label: parent });
-            if (subMap[parent]) {
-                Array.from(subMap[parent]).forEach(sub => {
-                    categories.push({ name: parent + '/' + sub, label: sub, parent: parent });
-                });
-            }
-        });
-
-    } catch (e) {
-        console.error('加载异常:', e);
-        document.getElementById('products').innerHTML =
-            '<div class="empty-state"><div class="empty-icon">⚠️</div><p>网络错误，请刷新重试</p></div>';
     }
+
+    console.error('加载失败:', lastError);
+    document.getElementById('products').innerHTML =
+        '<div class="empty-state"><div class="empty-icon">⚠️</div><p>加载失败，请刷新重试</p></div>';
 }
 
 // ---- 构建分类导航 ----
@@ -271,7 +277,7 @@ function showProductDetail(product) {
             allMedia.forEach((media, i) => {
                 let slideContent = '';
                 if (media.type === 'video') {
-                    slideContent = '<video src="' + media.url + '" controls playsinline preload="metadata" style="width:100%;height:200px;object-fit:contain;background:#000;border-radius:8px"></video>';
+                    slideContent = '<video src="' + media.url + '" controls playsinline preload="none" muted style="width:100%;height:200px;object-fit:contain;background:#000;border-radius:8px"></video>';
                 } else {
                     slideContent = '<img src="' + media.url + '" style="width:100%;height:200px;object-fit:contain;background:#f5f5f5;border-radius:8px">';
                 }
@@ -287,7 +293,7 @@ function showProductDetail(product) {
                 '</div>';
         } else {
             if (allMedia[0].type === 'video') {
-                mediaHtml = '<div style="margin-bottom:12px"><video src="' + allMedia[0].url + '" controls playsinline preload="metadata" style="width:100%;max-height:300px;border-radius:8px;background:#000"></video></div>';
+                mediaHtml = '<div style="margin-bottom:12px"><video src="' + allMedia[0].url + '" controls playsinline preload="none" muted style="width:100%;max-height:300px;border-radius:8px;background:#000"></video></div>';
             } else {
                 mediaHtml = '<div style="margin-bottom:12px"><img src="' + allMedia[0].url + '" style="width:100%;max-width:100%;height:auto;border-radius:8px"></div>';
             }
