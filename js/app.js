@@ -332,7 +332,6 @@ function showProductDetail(product) {
     });
     document.body.appendChild(modal);
 }
-}
 
 // ---- 轮播导航（全局函数，供箭头按钮和滑动调用） ----
 let _carouselIndex = 0;
