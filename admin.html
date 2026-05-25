@@ -26,6 +26,14 @@
     <div id="adminSection" style="display:none;padding-top:46px;min-height:100vh;">
         <div class="admin-toolbar">
             <button class="btn-add" onclick="showAddForm()">＋ 添加商品</button>
+            <button class="btn-add" onclick="migrateMedia()" style="background:#e67e22">🔄 迁移媒体到COS</button>
+        </div>
+
+        <!-- 迁移进度 -->
+        <div id="migratePanel" style="display:none;margin:16px;padding:16px;background:#f8f8f8;border-radius:8px">
+            <h3 style="margin:0 0 12px">🔄 媒体迁移到COS</h3>
+            <div id="migrateLog" style="font-family:monospace;font-size:13px;max-height:400px;overflow-y:auto;background:#222;color:#0f0;padding:12px;border-radius:6px"></div>
+            <button onclick="document.getElementById('migratePanel').style.display='none'" style="margin-top:12px;padding:8px 20px;border:none;border-radius:6px;background:#888;color:#fff;cursor:pointer">关闭</button>
         </div>
 
         <!-- 添加/编辑表单 -->

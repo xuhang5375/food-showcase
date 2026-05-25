@@ -512,3 +512,199 @@ function logoutAdmin() {
     document.getElementById('adminSection').style.display = 'none';
     document.getElementById('passwordInput').value = '';
 }
+
+// ========================================
+// 媒体迁移到 COS（浏览器内执行）
+// ========================================
+var SUPABASE_STORAGE_HOST = 'infsqrfqksvqzlapvott.supabase.co';
+
+function _mLog(msg, color) {
+    var el = document.getElementById('migrateLog');
+    if (!el) return;
+    var span = document.createElement('div');
+    span.style.color = color || '#0f0';
+    span.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+    el.appendChild(span);
+    el.scrollTop = el.scrollHeight;
+}
+
+async function _downloadFile(url) {
+    var res = await fetch(url);
+    if (!res.ok) throw new Error('下载失败 ' + res.status + ': ' + url);
+    return res.blob();
+}
+
+function _getExtFromUrl(url) {
+    var m = url.match(/\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?|$)/i);
+    return m ? m[1].toLowerCase() : 'bin';
+}
+
+function _getMimeType(ext) {
+    return { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp', mp4:'video/mp4', webm:'video/webm', mov:'video/quicktime' }[ext] || 'application/octet-stream';
+}
+
+function _cosKeyFromUrl(oldUrl) {
+    // 提取 product-media/images/xxx.jpg -> food-showcase/images/xxx.jpg
+    var m = oldUrl.match(/product-media\/(images|videos)\/(.+)$/);
+    if (!m) return null;
+    return 'food-showcase/' + m[1] + '/' + m[2];
+}
+
+// 拦截 uploadToCOS 以支持 Blob（复用同一 COS 签名算法）
+async function _uploadBlob(blob, cosKey) {
+    var ext = _getExtFromUrl(cosKey);
+    var mimeType = _getMimeType(ext);
+    var fakeFile = new File([blob], cosKey.split('/').pop(), { type: mimeType });
+
+    var host = COS_BUCKET + '.cos.' + COS_REGION + '.myqcloud.com';
+    var pathname = '/' + cosKey;
+    var url = 'https://' + host + pathname;
+    var authorization = _cosAuth('PUT', pathname);
+
+    return new Promise(function(resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        xhr.addEventListener('load', function() {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(COS_CDN_URL + '/' + cosKey);
+            } else {
+                reject(new Error('COS ' + xhr.status + ': ' + xhr.responseText.substring(0, 100)));
+            }
+        });
+        xhr.addEventListener('error', function() { reject(new Error('网络错误')); });
+        xhr.open('PUT', url);
+        xhr.setRequestHeader('Authorization', authorization);
+        xhr.setRequestHeader('Content-Type', mimeType);
+        xhr.timeout = 120000;
+        xhr.send(fakeFile);
+    });
+}
+
+async function migrateMedia() {
+    if (!isLoggedIn) { alert('请先登录'); return; }
+    if (!COS_SECRET_ID || COS_SECRET_ID === '[YOUR_COS_SECRET_ID]') {
+        alert('COS 未配置，请在 CI 中注入 Secrets'); return;
+    }
+    var panel = document.getElementById('migratePanel');
+    var log = document.getElementById('migrateLog');
+    panel.style.display = 'block';
+    log.innerHTML = '';
+    _mLog('开始迁移...');
+
+    try {
+        await waitForSupabase();
+
+        // 1. 获取所有商品
+        _mLog('获取商品列表...');
+        var res = await getSupabase().from(TABLE_NAME).select('id,name,images,video_url');
+        if (res.error) throw res.error;
+        var products = res.data;
+        _mLog('共 ' + products.length + ' 个商品');
+
+        // 2. 收集所有待迁移的 URL
+        var tasks = [];
+        for (var i = 0; i < products.length; i++) {
+            var p = products[i];
+            var imgUrls = p.images || [];
+            for (var j = 0; j < imgUrls.length; j++) {
+                var img = imgUrls[j];
+                var imgUrl = typeof img === 'string' ? img : (img && img.url);
+                if (imgUrl && imgUrl.includes(SUPABASE_STORAGE_HOST)) {
+                    tasks.push({ productId: p.id, productName: p.name, oldUrl: imgUrl, type: 'image' });
+                }
+            }
+            if (p.video_url && p.video_url.includes(SUPABASE_STORAGE_HOST)) {
+                tasks.push({ productId: p.id, productName: p.name, oldUrl: p.video_url, type: 'video' });
+            }
+        }
+
+        // 去重
+        var seen = {};
+        tasks = tasks.filter(function(t) {
+            if (seen[t.oldUrl]) return false;
+            seen[t.oldUrl] = true;
+            return true;
+        });
+
+        _mLog('待迁移文件: ' + tasks.length + ' 个');
+        if (tasks.length === 0) {
+            _mLog('没有需要迁移的文件', '#ff0');
+            return;
+        }
+
+        // 3. 逐个迁移
+        var urlMap = {};
+        var success = 0, failed = 0;
+
+        for (var k = 0; k < tasks.length; k++) {
+            var task = tasks[k];
+            _mLog('[' + (k+1) + '/' + tasks.length + '] ' + task.type + ' ' + task.oldUrl.split('/').pop().substring(0, 30));
+
+            try {
+                var cosKey = _cosKeyFromUrl(task.oldUrl);
+                if (!cosKey) { _mLog('  ⚠ 无法解析COS key', '#ff0'); failed++; continue; }
+
+                // 下载
+                _mLog('  ↓ 下载中...');
+                var blob = await _downloadFile(task.oldUrl);
+                _mLog('  ↓ ' + (blob.size/1024/1024).toFixed(1) + 'MB -> 上传COS...');
+
+                // 上传
+                var newUrl = await _uploadBlob(blob, cosKey);
+                urlMap[task.oldUrl] = newUrl;
+                _mLog('  ✅ ' + newUrl.split('/').pop().substring(0, 30), '#0f0');
+                success++;
+            } catch (e) {
+                _mLog('  ❌ ' + e.message.substring(0, 80), '#f55');
+                failed++;
+            }
+        }
+
+        _mLog('迁移完成: ' + success + ' 成功, ' + failed + ' 失败', success > 0 ? '#0f0' : '#ff0');
+
+        // 4. 更新数据库
+        if (Object.keys(urlMap).length === 0) { return; }
+
+        _mLog('更新数据库...');
+        var productUpdates = {};
+        for (var t = 0; t < tasks.length; t++) {
+            var tk = tasks[t];
+            var newU = urlMap[tk.oldUrl];
+            if (!newU) continue;
+            if (!productUpdates[tk.productId]) {
+                productUpdates[tk.productId] = { id: tk.productId, images: [], video_url: null };
+            }
+            if (tk.type === 'video') {
+                productUpdates[tk.productId].video_url = newU;
+            } else {
+                productUpdates[tk.productId].images.push(newU);
+            }
+        }
+
+        var dbOk = 0, dbFail = 0;
+        var productIds = Object.keys(productUpdates);
+        for (var pi = 0; pi < productIds.length; pi++) {
+            var upd = productUpdates[productIds[pi]];
+            var body = {};
+            if (upd.images.length > 0) {
+                body.images = upd.images;
+                body.image_url = upd.images[0];
+            }
+            if (upd.video_url) body.video_url = upd.video_url;
+
+            var r = await getSupabase().from(TABLE_NAME).update(body).eq('id', upd.id);
+            if (r.error) {
+                _mLog('  ⚠ 商品 ' + upd.id + ' 更新失败: ' + r.error.message, '#ff0');
+                dbFail++;
+            } else {
+                _mLog('  ✅ 商品 ' + upd.id + ' 更新成功', '#0f0');
+                dbOk++;
+            }
+        }
+
+        _mLog('数据库更新: ' + dbOk + ' 成功, ' + dbFail + ' 失败', '#0f0');
+        _mLog('=== 全部完成 ===', '#ff0');
+
+    } catch (e) {
+        _mLog('异常: ' + e.message, '#f55');
+    }
+}

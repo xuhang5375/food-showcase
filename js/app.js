@@ -43,7 +43,14 @@ var COS_CDN_URL = window.COS_CDN_URL || 'https://799195375-1306702381.file.myqcl
 
 function mediaUrl(url) {
     if (!url) return url;
+    // 已是 COS URL
     if (url.indexOf('799195375-1306702381') !== -1) return url;
+    // 临时：将旧 Supabase Storage URL 重写为 COS CDN（迁移完成前兜底）
+    var supPrefix = 'infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/';
+    if (url.indexOf(supPrefix) !== -1) {
+        var rest = url.split(supPrefix)[1];
+        if (rest) return 'https://799195375-1306702381.file.myqcloud.com/' + rest;
+    }
     return url;
 }
 
