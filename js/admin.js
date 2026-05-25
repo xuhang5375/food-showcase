@@ -544,10 +544,12 @@ function _getMimeType(ext) {
 }
 
 function _cosKeyFromUrl(oldUrl) {
-    // 提取 product-media/images/xxx.jpg -> food-showcase/images/xxx.jpg
-    var m = oldUrl.match(/product-media\/(images|videos)\/(.+)$/);
+    // 生成安全 ASCII 文件名，避免中文导致 XHR setRequestHeader 报错
+    var m = oldUrl.match(/product-media\/(images|videos)\/.+\.([a-zA-Z0-9]+)$/);
     if (!m) return null;
-    return 'food-showcase/' + m[1] + '/' + m[2];
+    var folder = m[1];
+    var ext = m[2];
+    return 'food-showcase/' + folder + '/' + Date.now() + '_' + Math.random().toString(36).substring(2, 8) + '.' + ext;
 }
 
 // 拦截 uploadToCOS 以支持 Blob（复用同一 COS 签名算法）
@@ -708,3 +710,4 @@ async function migrateMedia() {
         _mLog('异常: ' + e.message, '#f55');
     }
 }
+
