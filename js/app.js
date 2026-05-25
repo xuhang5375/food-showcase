@@ -39,6 +39,14 @@ function waitForSupabase() {
     bindEvents();
 })();
 
+var COS_CDN_URL = window.COS_CDN_URL || 'https://799195375-1306702381.file.myqcloud.com';
+
+function mediaUrl(url) {
+    if (!url) return url;
+    if (url.indexOf('799195375-1306702381') !== -1) return url;
+    return url;
+}
+
 // ---- 加载商品数据 ----
 async function loadProducts() {
     let lastError = null;
@@ -178,9 +186,9 @@ function renderProducts() {
         // 获取第一张图片作为封面
         let firstImg = '';
         if (Array.isArray(p.images) && p.images.length > 0) {
-            firstImg = p.images[0];
+            firstImg = mediaUrl(p.images[0]);
         } else if (p.image_url) {
-            firstImg = p.image_url;
+            firstImg = mediaUrl(p.image_url);
         }
         
         let coverHtml = firstImg
@@ -277,9 +285,9 @@ function showProductDetail(product) {
             allMedia.forEach((media, i) => {
                 let slideContent = '';
                 if (media.type === 'video') {
-                    slideContent = '<video src="' + media.url + '" controls playsinline preload="none" muted style="width:100%;height:200px;object-fit:contain;background:#000;border-radius:8px"></video>';
+                    slideContent = '<video src="' + mediaUrl(media.url) + '" controls playsinline preload="none" muted style="width:100%;height:200px;object-fit:contain;background:#000;border-radius:8px"></video>';
                 } else {
-                    slideContent = '<img src="' + media.url + '" style="width:100%;height:200px;object-fit:contain;background:#f5f5f5;border-radius:8px">';
+                    slideContent = '<img src="' + mediaUrl(media.url) + '" style="width:100%;height:200px;object-fit:contain;background:#f5f5f5;border-radius:8px">';
                 }
                 slidesHtml += '<div class="carousel-slide" data-index="' + i + '" style="display:' + (i === 0 ? 'block' : 'none') + '">' + slideContent + '</div>';
                 dotsHtml += '<span class="carousel-dot" data-index="' + i + '" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + (i === 0 ? '#f60' : '#ccc') + ';margin:0 4px;cursor:pointer"></span>';
@@ -293,9 +301,9 @@ function showProductDetail(product) {
                 '</div>';
         } else {
             if (allMedia[0].type === 'video') {
-                mediaHtml = '<div style="margin-bottom:12px"><video src="' + allMedia[0].url + '" controls playsinline preload="none" muted style="width:100%;max-height:300px;border-radius:8px;background:#000"></video></div>';
+                mediaHtml = '<div style="margin-bottom:12px"><video src="' + mediaUrl(allMedia[0].url) + '" controls playsinline preload="none" muted style="width:100%;max-height:300px;border-radius:8px;background:#000"></video></div>';
             } else {
-                mediaHtml = '<div style="margin-bottom:12px"><img src="' + allMedia[0].url + '" style="width:100%;max-width:100%;height:auto;border-radius:8px"></div>';
+                mediaHtml = '<div style="margin-bottom:12px"><img src="' + mediaUrl(allMedia[0].url) + '" style="width:100%;max-width:100%;height:auto;border-radius:8px"></div>';
             }
         }
     }

@@ -7,6 +7,12 @@ function getSupabase() { return window.supabase; }
 var ADMIN_PASSWORD = window.ADMIN_PASSWORD || '920615';
 var TABLE_NAME = window.TABLE_NAME || 'food_showcase_products';
 var BUCKET_NAME = window.BUCKET_NAME || 'product-media';
+var COS_SECRET_ID = window.COS_SECRET_ID || '';
+var COS_SECRET_KEY = window.COS_SECRET_KEY || '';
+var COS_BUCKET = window.COS_BUCKET || '';
+var COS_REGION = window.COS_REGION || '';
+var COS_CDN_URL = window.COS_CDN_URL || '';
+var COS_UPLOAD_FOLDER = window.COS_UPLOAD_FOLDER || 'food-showcase';
 
 let isLoggedIn = false;
 let editingId = null;
@@ -277,63 +283,80 @@ function removeExistingVideo() {
     document.getElementById('videoUploadText').textContent = '🎬 点击上传视频';
 }
 
-// ---- 上传文件到 Supabase Storage（带进度）----
-async function uploadToStorage(file, folder) {
+// ---- COS 签名工具 ----
+function _cosHmacSha1(key, data) {
+    var keyWords = CryptoJS.enc.Utf8.parse(key);
+    var dataWords = CryptoJS.enc.Utf8.parse(data);
+    var hmac = CryptoJS.HmacSHA1(dataWords, keyWords);
+    // 重新用 key 签名（HmacSHA1 内部会做 key padding，需直接对 dataWords 签名）
+    hmac = CryptoJS.HmacSHA1(data, key);
+    return CryptoJS.enc.Base64.stringify(hmac);
+}
+
+function _cosAuth(method, pathname) {
+    var now = Math.floor(Date.now() / 1000);
+    var exp = now + 3600;
+    var keyTime = now + ';' + exp;
+    var signKey = _cosHmacSha1(COS_SECRET_KEY, keyTime);
+    var httpString = method.toLowerCase() + '\n' + pathname + '\n\n';
+    var stringToSign = 'sha1\n' + keyTime + '\n' + CryptoJS.SHA1(httpString).toString() + '\n';
+    var signature = _cosHmacSha1(signKey, stringToSign);
+    return 'q-sign-algorithm=sha1&q-ak=' + COS_SECRET_ID +
+        '&q-sign-time=' + keyTime +
+        '&q-key-time=' + keyTime +
+        '&q-header-list=&q-url-param-list=&q-signature=' + signature;
+}
+
+// ---- 上传文件到腾讯云 COS（带进度）----
+async function uploadToCOS(file, folder) {
     var ext = file.name.split('.').pop();
-    var path = folder + '/' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '.' + ext;
+    var key = COS_UPLOAD_FOLDER + '/' + folder + '/' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '.' + ext;
     var fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
-    
-    console.log('开始上传:', path, '文件大小:', fileSizeMB, 'MB');
+    var host = COS_BUCKET + '.cos.' + COS_REGION + '.myqcloud.com';
+    var pathname = '/' + key;
+    var url = 'https://' + host + pathname;
+
+    console.log('开始上传到COS:', key, '文件大小:', fileSizeMB, 'MB');
     showProgress('正在上传 ' + fileSizeMB + 'MB，请稍候...');
-    
+
     try {
-        return await new Promise((resolve, reject) => {
+        var authorization = _cosAuth('PUT', pathname);
+        return await new Promise(function(resolve, reject) {
             var xhr = new XMLHttpRequest();
-            var url = getSupabase().supabaseUrl + '/storage/v1/object/' + BUCKET_NAME + '/' + path;
-            
             xhr.upload.addEventListener('progress', function(e) {
                 if (e.lengthComputable) {
                     var percent = Math.round((e.loaded / e.total) * 100);
                     showProgress('上传中 ' + percent + '% (' + fileSizeMB + 'MB)');
                 }
             });
-            
             xhr.addEventListener('load', function() {
                 hideProgress();
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    try {
-                        var response = JSON.parse(xhr.responseText);
-                        console.log('上传成功:', response);
-                        var publicUrl = getSupabase().supabaseUrl + '/storage/v1/object/public/' + BUCKET_NAME + '/' + path;
-                        resolve(publicUrl);
-                    } catch (e) {
-                        reject(new Error('解析响应失败'));
-                    }
+                    var publicUrl = COS_CDN_URL + '/' + key;
+                    console.log('COS上传成功:', publicUrl);
+                    resolve(publicUrl);
                 } else {
-                    console.error('上传失败:', xhr.status, xhr.responseText);
+                    console.error('COS上传失败:', xhr.status, xhr.responseText);
                     reject(new Error('上传失败: ' + xhr.status));
                 }
             });
-            
             xhr.addEventListener('error', function() {
                 hideProgress();
                 reject(new Error('网络错误，上传失败'));
             });
-            
             xhr.addEventListener('timeout', function() {
                 hideProgress();
                 reject(new Error('上传超时，请检查网络'));
             });
-            
-            xhr.open('POST', url);
-            xhr.setRequestHeader('apikey', getSupabase().supabaseKey);
-            xhr.setRequestHeader('Authorization', 'Bearer ' + getSupabase().supabaseKey);
+            xhr.open('PUT', url);
+            xhr.setRequestHeader('Authorization', authorization);
+            xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
             xhr.timeout = 120000;
             xhr.send(file);
         });
     } catch (e) {
         hideProgress();
-        console.error('Storage upload exception:', e);
+        console.error('COS upload exception:', e);
         return null;
     }
 }
@@ -362,7 +385,7 @@ async function saveProduct() {
             showProgress('上传 ' + newImageFiles.length + ' 张图片...');
             for (var i = 0; i < newImageFiles.length; i++) {
                 showProgress('上传图片 ' + (i + 1) + '/' + newImageFiles.length + '...');
-                var uploadedUrl = await uploadToStorage(newImageFiles[i].file, 'images');
+                var uploadedUrl = await uploadToCOS(newImageFiles[i].file, 'images');
                 if (uploadedUrl) imageUrls.push(uploadedUrl);
             }
             hideProgress();
@@ -372,7 +395,7 @@ async function saveProduct() {
         var videoUrl = existingVideoUrl || null;
         if (newVideoFile) {
             showProgress('上传视频...');
-            var uploadedVideoUrl = await uploadToStorage(newVideoFile, 'videos');
+            var uploadedVideoUrl = await uploadToCOS(newVideoFile, 'videos');
             if (uploadedVideoUrl) videoUrl = uploadedVideoUrl;
             hideProgress();
         }
