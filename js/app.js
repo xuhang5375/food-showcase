@@ -1,4 +1,4 @@
-﻿// ========================================
+// ========================================
 // 食材采购 - 前台展示页逻辑
 // 左侧分类导航 + 右侧商品列表 + 搜索 + 多图轮播
 // ========================================
@@ -45,7 +45,7 @@ function mediaUrl(url) {
     if (!url) return url;
     // 已是 COS URL
     if (url.indexOf('799195375-1306702381') !== -1) return url;
-    // 临时：将旧 Supabase Storage URL 重写为 COS CDN（迁移完成前兜底）
+    // 临��：将旧 Supabase Storage URL 重写为 COS CDN（迁移完成前兜底）
     var supPrefix = 'infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/';
     if (url.indexOf(supPrefix) !== -1) {
         var rest = url.split(supPrefix)[1];
@@ -328,6 +328,7 @@ function showProductDetail(product) {
         (product.code ? '<div style="color:#888;font-size:12px">编码: ' + product.code + '</div>' : '') +
         (product.specification ? '<div style="color:#666;font-size:13px;margin-top:4px">规格: ' + product.specification + '</div>' : '') +
         (product.description ? '<div style="color:#666;font-size:14px;margin-top:12px;line-height:1.5">' + product.description + '</div>' : '') +
+        (product.remark ? '<div style="color:#e6a23c;font-size:13px;margin-top:8px;line-height:1.5">📝 ' + product.remark + '</div>' : '') +
         '</div>';
 
     // 圆点点击 + 触摸滑动（统一用 carouselShow）
