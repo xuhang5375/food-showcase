@@ -66,7 +66,7 @@ async function loadProducts() {
 
             if (error) throw error;
 
-            allProducts = data || [];
+            allProducts = (data || []).filter(p => p.is_active !== false);
             if (allProducts.length === 0) {
                 document.getElementById('products').innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><p>暂无商品</p></div>';
                 return;
