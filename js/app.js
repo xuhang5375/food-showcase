@@ -39,7 +39,7 @@ function waitForSupabase() {
     bindEvents();
 })();
 
-var COS_CDN_URL = window.COS_CDN_URL || 'https://799195375-1306702381.file.myqcloud.com';
+var COS_CDN_URL = window.COS_CDN_URL || 'https://799195375-1306702381.cos.ap-guangzhou.myqcloud.com';
 
 function mediaUrl(url) {
     if (!url) return url;
@@ -49,7 +49,7 @@ function mediaUrl(url) {
     var supPrefix = 'infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/';
     if (url.indexOf(supPrefix) !== -1) {
         var rest = url.split(supPrefix)[1];
-        if (rest) return 'https://799195375-1306702381.file.myqcloud.com/' + rest;
+        if (rest) return 'https://799195375-1306702381.cos.ap-guangzhou.myqcloud.com/' + rest;
     }
     return url;
 }
