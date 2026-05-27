@@ -93,7 +93,7 @@ async function loadProducts() {
         data.forEach(function(p) {
             var isActive = p.is_active !== false;
             var priceText = '-';
-            if (p.price) { var pp = String(p.price).split('/'); priceText = pp[0] ? (pp[1] ? pp[0] + '/' + pp[1] : pp[0]) : '-'); }
+            if (p.price) { var pp = String(p.price).split('/'); priceText = pp[0] ? (pp[1] ? pp[0] + '/' + pp[1] : pp[0]) : '-'; }
             var firstImg = (Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : (p.image_url || '');
             var coverImg = firstImg ? '<img src="' + firstImg + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px" onerror="this.style.display=\'none\'">' : '<div style="width:60px;height:60px;background:#eee;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:24px">📦</div>';
             var badge = isActive ? '<span style="font-size:11px;padding:2px 6px;background:#4caf50;color:#fff;border-radius:3px">上架</span>' : '<span style="font-size:11px;padding:2px 6px;background:#999;color:#fff;border-radius:3px">下架</span>';
