@@ -1,6 +1,6 @@
-﻿// ========================================
-// 椋熸潗閲囪喘 - 鍓嶅彴灞曠ず椤甸€昏緫
-// 宸︿晶鍒嗙被瀵艰埅 + 鍙充晶鍟嗗搧鍒楄〃 + 鎼滅储 + 澶氬浘杞挱
+// ========================================
+// 食材采购 - 前台展示页逻辑
+// 左侧分类导航 + 右侧商品列表 + 搜索 + 多图轮播
 // ========================================
 
 function getSupabase() { return window.supabase; }
@@ -11,7 +11,7 @@ let categories = [];
 let currentCategory = 'all';
 let searchKeyword = '';
 
-// ---- 鍒濆鍖?----
+// ---- 初始化 ----
 function waitForSupabase() {
     return new Promise((resolve) => {
         if (window.supabase) {
@@ -25,7 +25,7 @@ function waitForSupabase() {
             }, 50);
             setTimeout(() => {
                 clearInterval(check);
-                console.error('Supabase 鍒濆鍖栬秴鏃?);
+                console.error('Supabase 初始化超时');
             }, 5000);
         }
     });
@@ -43,11 +43,11 @@ var COS_CDN_URL = window.COS_CDN_URL || 'https://799195375-1306702381.cos.ap-gua
 
 function mediaUrl(url) {
     if (!url) return url;
-    // 灏嗙被 COS 浣嗘枃浠朵笉瀛樺湪鐨?URL 鍥炰覆鍒?Supabase Storage
-    // COS 鍥剧墖瀛樺湪鐩存帴鐢ㄣ€丆OS 瑙嗛鐩墠鍥炰覆鍒?Supabase
+    // 将被 COS 不存在的 URL 回覆到 Supabase Storage
+    // COS 图片存在直接用、COS 视频目前回覆到 Supabase
     if (url.indexOf('799195375-1306702381') !== -1) {
         if (url.indexOf('.mp4') !== -1) {
-            // COS 瑙嗛 404锛屽洖婧呭埌 Supabase Storage
+            // COS 视频 404，回源到 Supabase Storage
             var filename = url.split('/').pop();
             return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/videos/' + filename;
         }
@@ -56,7 +56,7 @@ function mediaUrl(url) {
     return url;
 }
 
-// ---- 鍔犺浇鍟嗗搧鏁版嵁 ----
+// ---- 加载商品数据 ----
 async function loadProducts() {
     let lastError = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -71,7 +71,7 @@ async function loadProducts() {
 
             allProducts = data || [];
             if (allProducts.length === 0) {
-                document.getElementById('products').innerHTML = '<div class="empty-state"><div class="empty-icon">馃摝</div><p>鏆傛棤鍟嗗搧</p></div>';
+                document.getElementById('products').innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>暂无商品</p></div>';
                 return;
             }
 
@@ -98,8 +98,8 @@ async function loadProducts() {
                 }
             });
 
-            categories = [{ name: 'all', label: '鍏ㄩ儴' }];
-            const parentOrder = ['姣涜倸绯诲垪', '鍗冨眰绯诲垪', '榛戝崈灞?, '鐧藉崈灞?, '铏炬粦', '鑲夌被', '鍏朵粬'];
+            categories = [{ name: 'all', label: '全部' }];
+            const parentOrder = ['毛肚系列', '千层系列', '黑千层', '白千层', '虾滑', '肉类', '其他'];
             const sortedParents = Array.from(catSet).sort((a, b) => {
                 const ia = parentOrder.indexOf(a);
                 const ib = parentOrder.indexOf(b);
@@ -127,12 +127,12 @@ async function loadProducts() {
         }
     }
 
-    console.error('鍔犺浇澶辫触:', lastError);
+    console.error('加载失败:', lastError);
     document.getElementById('products').innerHTML =
-        '<div class="empty-state"><div class="empty-icon">鈿狅笍</div><p>鍔犺浇澶辫触锛岃鍒锋柊閲嶈瘯</p></div>';
+        '<div class="empty-state"><div class="empty-icon">⚠️</div><p>加载失败，请刷新重试</p></div>';
 }
 
-// ---- 鏋勫缓鍒嗙被瀵艰埅 ----
+// ---- 构建分类导航 ----
 function buildCategoryNav() {
     const nav = document.getElementById('categoryNav');
     if (!nav) return;
@@ -150,14 +150,14 @@ function buildCategoryNav() {
     nav.innerHTML = html;
 }
 
-// ---- 娓叉煋鍟嗗搧鍒楄〃 ----
+// ---- 渲染商品列表 ----
 function renderProducts() {
     const container = document.getElementById('products');
     if (!container) return;
 
     let filtered = allProducts;
 
-    // 鍒嗙被绛涢€?
+    // 分类筛选
     if (currentCategory !== 'all') {
         if (currentCategory.includes('/')) {
             filtered = filtered.filter(p => p.category === currentCategory);
@@ -169,7 +169,7 @@ function renderProducts() {
         }
     }
 
-    // 鎼滅储绛涢€?
+    // 搜索筛选
     if (searchKeyword) {
         const kw = searchKeyword.toLowerCase();
         filtered = filtered.filter(p =>
@@ -181,7 +181,7 @@ function renderProducts() {
     }
 
     if (filtered.length === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">馃摝</div><p>鏆傛棤鍟嗗搧</p></div>';
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>暂无商品</p></div>';
         return;
     }
 
@@ -190,10 +190,10 @@ function renderProducts() {
         let priceText = '-';
         if (p.price) {
             const pp = p.price.split('/');
-            priceText = pp[0] ? (pp[1] ? pp[0] + '/鍏? + pp[1] : pp[0]) : '-';
+            priceText = pp[0] ? (pp[1] ? pp[0] + '/斤' + pp[1] : pp[0]) : '-';
         }
 
-        // 鑾峰彇绗竴寮犲浘鐗囦綔涓哄皝闈?
+        // 获取第一张图片作为封面
         let firstImg = '';
         if (Array.isArray(p.images) && p.images.length > 0) {
             firstImg = mediaUrl(p.images[0]);
@@ -203,26 +203,26 @@ function renderProducts() {
         
         let coverHtml = firstImg
             ? '<img src="' + firstImg + '" onerror="this.style.display=\'none\'">'
-            : '<div class="no-image">馃摝</div>';
+            : '<div class="no-image">📋</div>';
 
-        // 澶氬浘鏍囪
+        // 多图标签
         let multiBadge = '';
         if (Array.isArray(p.images) && p.images.length > 1) {
-            multiBadge = '<div class="multi-badge">' + p.images.length + '鍥?/div>';
+            multiBadge = '<div class="multi-badge">' + p.images.length + '图</div>';
         }
 
-        // 瑙嗛鏍囪
+        // 视频标签
         let videoBadge = '';
         if (p.video_url) {
-            videoBadge = '<div class="video-badge">鈻?/div>';
+            videoBadge = '<div class="video-badge">▶</div>';
         }
 
         html += '<div class="product-card" data-id="' + p.id + '">' +
             '<div class="product-cover">' + coverHtml + multiBadge + videoBadge + '</div>' +
             '<div class="product-info">' +
-            '<div class="product-name">' + (p.name || '鏈懡鍚?) + '</div>' +
+            '<div class="product-name">' + (p.name || '未命名') + '</div>' +
             '<div class="product-meta">' +
-            '<span class="product-category">' + (p.category || '鏈垎绫?) + '</span>' +
+            '<span class="product-category">' + (p.category || '未分类') + '</span>' +
             '</div>' +
             '<div class="product-price">' + priceText + '</div>' +
             (p.specification ? '<div class="product-spec" style="color:#666;font-size:12px;margin-top:2px">' + p.specification + '</div>' : '') +
@@ -233,9 +233,9 @@ function renderProducts() {
     container.innerHTML = html;
 }
 
-// ---- 缁戝畾浜嬩欢 ----
+// ---- 绑定事件 ----
 function bindEvents() {
-    // 鍒嗙被鐐瑰嚮
+    // 分类点击
     document.getElementById('categoryNav').addEventListener('click', function(e) {
         const item = e.target.closest('.category-item');
         if (!item) return;
@@ -245,7 +245,7 @@ function bindEvents() {
         renderProducts();
     });
 
-    // 鎼滅储
+    // 搜索
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('input', function(e) {
@@ -254,7 +254,7 @@ function bindEvents() {
         });
     }
 
-    // 鍟嗗搧鍗＄墖鐐瑰嚮锛堟樉绀鸿鎯?瑙嗛锛?
+    // 商品卡片点击（显示详情/视频）
     document.getElementById('products').addEventListener('click', function(e) {
         const card = e.target.closest('.product-card');
         if (!card) return;
@@ -265,17 +265,17 @@ function bindEvents() {
 }
 
 function showProductDetail(product) {
-    // 绉婚櫎宸叉湁寮圭獥
+    // 移除已有弹窗
     const existing = document.getElementById('detailModal');
     if (existing) existing.remove();
 
     let priceText = '-';
     if (product.price) {
         const pp = product.price.split('/');
-        priceText = pp[0] ? (pp[1] ? pp[0] + '/鍏? + pp[1] : pp[0]) : '-';
+        priceText = pp[0] ? (pp[1] ? pp[0] + '/斤' + pp[1] : pp[0]) : '-';
     }
 
-    // 鏀堕泦鎵€鏈夊獟浣?
+    // 收集所有媒体
     let allMedia = [];
     if (Array.isArray(product.images) && product.images.length > 0) {
         product.images.forEach(url => { allMedia.push({ type: 'image', url: url }); });
@@ -286,7 +286,7 @@ function showProductDetail(product) {
         allMedia.push({ type: 'video', url: product.video_url });
     }
 
-    // 鏋勫缓濯掍綋鍖哄煙
+    // 构建媒体区域
     let mediaHtml = '';
     if (allMedia.length > 0) {
         if (allMedia.length > 1) {
@@ -304,8 +304,8 @@ function showProductDetail(product) {
             });
             mediaHtml = '<div class="carousel-container" style="position:relative;margin-bottom:12px" id="carouselContainer">' +
                 slidesHtml +
-                '<button class="carousel-prev" onclick="carouselGo(-1)" style="position:absolute;left:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;opacity:0.7">鈥?/button>' +
-                '<button class="carousel-next" onclick="carouselGo(1)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;opacity:0.7">鈥?/button>' +
+                '<button class="carousel-prev" onclick="carouselGo(-1)" style="position:absolute;left:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;opacity:0.7">‹</button>' +
+                '<button class="carousel-next" onclick="carouselGo(1)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;opacity:0.7">›</button>' +
                 '<div class="carousel-counter" style="position:absolute;right:8px;top:8px;background:rgba(0,0,0,0.55);color:#fff;font-size:12px;padding:2px 7px;border-radius:10px;z-index:2">1/' + allMedia.length + '</div>' +
                 '<div class="carousel-dots" style="text-align:center;margin-top:8px">' + dotsHtml + '</div>' +
                 '</div>';
@@ -323,18 +323,18 @@ function showProductDetail(product) {
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:1000';
     modal.innerHTML = '<div style="background:#fff;border-radius:12px;max-width:400px;width:90%;max-height:80vh;overflow-y:auto;padding:20px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
-        '<h3 style="margin:0;font-size:18px">' + (product.name || '鍟嗗搧璇︽儏') + '</h3>' +
-        '<button onclick="document.getElementById(\'detailModal\').remove()" style="border:none;background:#eee;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">脳</button>' +
+        '<h3 style="margin:0;font-size:18px">' + (product.name || '商品详情') + '</h3>' +
+        '<button onclick="document.getElementById(\'detailModal\').remove()" style="border:none;background:#eee;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>' +
         '</div>' + mediaHtml +
-        '<div style="color:#888;font-size:13px;margin-bottom:6px">鍒嗙被: ' + (product.category || '鏈垎绫?) + '</div>' +
+        '<div style="color:#888;font-size:13px;margin-bottom:6px">分类: ' + (product.category || '未分类') + '</div>' +
         '<div style="color:#f60;font-size:20px;font-weight:600;margin-bottom:8px">' + priceText + '</div>' +
-        (product.code ? '<div style="color:#888;font-size:12px">缂栫爜: ' + product.code + '</div>' : '') +
-        (product.specification ? '<div style="color:#666;font-size:13px;margin-top:4px">瑙勬牸: ' + product.specification + '</div>' : '') +
+        (product.code ? '<div style="color:#888;font-size:12px">编码: ' + product.code + '</div>' : '') +
+        (product.specification ? '<div style="color:#666;font-size:13px;margin-top:4px">规格: ' + product.specification + '</div>' : '') +
         (product.description ? '<div style="color:#666;font-size:14px;margin-top:12px;line-height:1.5">' + product.description + '</div>' : '') +
-        (product.remark ? '<div style="color:#e6a23c;font-size:13px;margin-top:8px;line-height:1.5">馃摑 ' + product.remark + '</div>' : '') +
+        (product.remark ? '<div style="color:#e6a23c;font-size:13px;margin-top:8px;line-height:1.5">📌 ' + product.remark + '</div>' : '') +
         '</div>';
 
-    // 鍦嗙偣鐐瑰嚮 + 瑙︽懜婊戝姩锛堢粺涓€鐢?carouselShow锛?
+    // 圆点点击 + 触摸滑动（统一用 carouselShow）
     if (allMedia.length > 1) {
         modal.querySelectorAll('.carousel-dot').forEach(dot => {
             dot.addEventListener('click', function() { carouselShow(parseInt(this.dataset.index)); });
@@ -358,7 +358,7 @@ function showProductDetail(product) {
     document.body.appendChild(modal);
 }
 
-// ---- 杞挱瀵艰埅锛堝叏灞€鍑芥暟锛屼緵绠ご鎸夐挳鍜屾粦鍔ㄨ皟鐢級 ----
+// ---- 轮播导航（全局函数，供箭头按钮和滑动调用） ----
 let _carouselIndex = 0;
 
 function carouselShow(idx) {
