@@ -190,7 +190,7 @@ function renderProducts() {
         let priceText = '-';
         if (p.price) {
             const pp = p.price.split('/');
-            priceText = pp[0] ? (pp[1] ? pp[0] + '/斤' + pp[1] : pp[0]) : '-';
+            priceText = pp[0] ? ('¥' + pp[0] + (pp[1] ? '/' + pp[1] : '')) : '-';
         }
 
         // 获取第一张图片作为封面
@@ -272,7 +272,7 @@ function showProductDetail(product) {
     let priceText = '-';
     if (product.price) {
         const pp = product.price.split('/');
-        priceText = pp[0] ? (pp[1] ? pp[0] + '/斤' + pp[1] : pp[0]) : '-';
+        priceText = pp[0] ? ('¥' + pp[0] + (pp[1] ? '/' + pp[1] : '')) : '-';
     }
 
     // 收集所有媒体
