@@ -1,9 +1,7 @@
-// ========================================
+﻿// ========================================
 // 食材采购 - 前台展示页逻辑
-// 左侧分类导航 + 右侧商品列表 + 搜索 + 多图轮播
 // ========================================
 
-function getSupabase() { return window.supabase; }
 var TABLE_NAME = window.TABLE_NAME || 'food_showcase_products';
 
 let allProducts = [];
@@ -12,35 +10,16 @@ let currentCategory = 'all';
 let searchKeyword = '';
 
 // ---- 初始化 ----
-function waitForSupabase() {
-    return new Promise((resolve) => {
-        if (window.supabase) {
-            resolve();
-        } else {
-            const check = setInterval(() => {
-                if (window.supabase) {
-                    clearInterval(check);
-                    resolve();
-                }
-            }, 50);
-            setTimeout(() => {
-                clearInterval(check);
-                reject(new Error('Supabase 初始化超时'));
-            }, 5000);
-        }
-    });
-}
-
 (async function init() {
     try {
-        await waitForSupabase();
         await loadProducts();
         buildCategoryNav();
         renderProducts();
         bindEvents();
     } catch (err) {
         console.error('初始化失败:', err);
-        document.getElementById('products').innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>加载失败，请刷新页面试试</p></div>';
+        const el = document.getElementById('products');
+        if (el) el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>加载失败，<a href="javascript:location.reload()">点击刷新</a></p></div>';
     }
 })();
 
@@ -48,11 +27,8 @@ var COS_CDN_URL = window.COS_CDN_URL || 'https://799195375-1306702381.cos.ap-gua
 
 function mediaUrl(url) {
     if (!url) return url;
-    // 将被 COS 不存在的 URL 回覆到 Supabase Storage
-    // COS 图片存在直接用、COS 视频目前回覆到 Supabase
     if (url.indexOf('799195375-1306702381') !== -1) {
         if (url.indexOf('.mp4') !== -1) {
-            // COS 视频 404，回源到 Supabase Storage
             var filename = url.split('/').pop();
             return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/videos/' + filename;
         }
@@ -66,7 +42,7 @@ async function loadProducts() {
     let lastError = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            const { data, error } = await getSupabase()
+            const { data, error } = await window.supabase
                 .from(TABLE_NAME)
                 .select('*')
                 .neq('is_active', false)
@@ -87,20 +63,10 @@ async function loadProducts() {
             });
 
             const catSet = new Set();
-            const subMap = {};
             allProducts.forEach(p => {
                 const cat = (p.category || '').trim();
                 if (!cat) return;
-                if (cat.includes('/')) {
-                    const parts = cat.split('/');
-                    const parent = parts[0].trim();
-                    const child = parts[1].trim();
-                    catSet.add(parent);
-                    if (!subMap[parent]) subMap[parent] = new Set();
-                    subMap[parent].add(child);
-                } else {
-                    catSet.add(cat);
-                }
+                catSet.add(cat);
             });
 
             categories = [{ name: 'all', label: '全部' }];
@@ -117,16 +83,12 @@ async function loadProducts() {
             sortedCats.forEach(cat => {
                 categories.push({ name: cat, label: cat });
             });
-
-            buildCategoryNav();
-            renderProducts();
             return;
         } catch (e) {
             lastError = e;
             if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 1000));
         }
     }
-
     console.error('加载失败:', lastError);
     document.getElementById('products').innerHTML =
         '<div class="empty-state"><div class="empty-icon">⚠️</div><p>加载失败，请刷新重试</p></div>';
@@ -136,16 +98,10 @@ async function loadProducts() {
 function buildCategoryNav() {
     const nav = document.getElementById('categoryNav');
     if (!nav) return;
-
     let html = '';
     categories.forEach(cat => {
-        if (cat.parent) {
-            html += '<div class="category-item sub-category' + (currentCategory === cat.name ? ' active' : '') +
-                '" data-category="' + cat.name + '">' + cat.label + '</div>';
-        } else {
-            html += '<div class="category-item' + (currentCategory === cat.name ? ' active' : '') +
-                '" data-category="' + cat.name + '">' + cat.label + '</div>';
-        }
+        html += '<div class="category-item' + (currentCategory === cat.name ? ' active' : '') +
+            '" data-category="' + cat.name + '">' + cat.label + '</div>';
     });
     nav.innerHTML = html;
 }
@@ -156,20 +112,12 @@ function renderProducts() {
     if (!container) return;
 
     let filtered = allProducts;
-
-    // 分类筛选
     if (currentCategory !== 'all') {
-        if (currentCategory.includes('/')) {
-            filtered = filtered.filter(p => p.category === currentCategory);
-        } else {
-            filtered = filtered.filter(p => {
-                const cat = (p.category || '').trim();
-                return cat === currentCategory || cat.startsWith(currentCategory + '/');
-            });
-        }
+        filtered = filtered.filter(p => {
+            const cat = (p.category || '').trim();
+            return cat === currentCategory || cat.startsWith(currentCategory + '/');
+        });
     }
-
-    // 搜索筛选
     if (searchKeyword) {
         const kw = searchKeyword.toLowerCase();
         filtered = filtered.filter(p =>
@@ -179,7 +127,6 @@ function renderProducts() {
             (p.category || '').toLowerCase().includes(kw)
         );
     }
-
     if (filtered.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>暂无商品</p></div>';
         return;
@@ -192,31 +139,23 @@ function renderProducts() {
             const pp = p.price.split('/');
             priceText = pp[0] ? ('¥' + pp[0] + (pp[1] ? '/' + pp[1] : '')) : '-';
         }
-
-        // 获取第一张图片作为封面
         let firstImg = '';
         if (Array.isArray(p.images) && p.images.length > 0) {
             firstImg = mediaUrl(p.images[0]);
         } else if (p.image_url) {
             firstImg = mediaUrl(p.image_url);
         }
-        
         let coverHtml = firstImg
             ? '<img src="' + firstImg + '" onerror="this.style.display=\'none\'">'
             : '<div class="no-image">📋</div>';
-
-        // 多图标签
         let multiBadge = '';
         if (Array.isArray(p.images) && p.images.length > 1) {
             multiBadge = '<div class="multi-badge">' + p.images.length + '图</div>';
         }
-
-        // 视频标签
         let videoBadge = '';
         if (p.video_url) {
             videoBadge = '<div class="video-badge">▶</div>';
         }
-
         html += '<div class="product-card" data-id="' + p.id + '">' +
             '<div class="product-cover">' + coverHtml + multiBadge + videoBadge + '</div>' +
             '<div class="product-info">' +
@@ -235,17 +174,17 @@ function renderProducts() {
 
 // ---- 绑定事件 ----
 function bindEvents() {
-    // 分类点击
-    document.getElementById('categoryNav').addEventListener('click', function(e) {
-        const item = e.target.closest('.category-item');
-        if (!item) return;
-        currentCategory = item.dataset.category;
-        document.querySelectorAll('.category-item').forEach(el => el.classList.remove('active'));
-        item.classList.add('active');
-        renderProducts();
-    });
-
-    // 搜索
+    const nav = document.getElementById('categoryNav');
+    if (nav) {
+        nav.addEventListener('click', function(e) {
+            const item = e.target.closest('.category-item');
+            if (!item) return;
+            currentCategory = item.dataset.category;
+            document.querySelectorAll('.category-item').forEach(el => el.classList.remove('active'));
+            item.classList.add('active');
+            renderProducts();
+        });
+    }
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('input', function(e) {
@@ -253,19 +192,15 @@ function bindEvents() {
             renderProducts();
         });
     }
-
-    // 商品卡片点击（显示详情/视频）
     document.getElementById('products').addEventListener('click', function(e) {
         const card = e.target.closest('.product-card');
         if (!card) return;
-        const id = card.dataset.id;
-        const product = allProducts.find(p => p.id === id);
+        const product = allProducts.find(p => p.id === card.dataset.id);
         if (product) showProductDetail(product);
     });
 }
 
 function showProductDetail(product) {
-    // 移除已有弹窗
     const existing = document.getElementById('detailModal');
     if (existing) existing.remove();
 
@@ -275,7 +210,6 @@ function showProductDetail(product) {
         priceText = pp[0] ? ('¥' + pp[0] + (pp[1] ? '/' + pp[1] : '')) : '-';
     }
 
-    // 收集所有媒体
     let allMedia = [];
     if (Array.isArray(product.images) && product.images.length > 0) {
         product.images.forEach(url => { allMedia.push({ type: 'image', url: url }); });
@@ -286,7 +220,6 @@ function showProductDetail(product) {
         allMedia.push({ type: 'video', url: product.video_url });
     }
 
-    // 构建媒体区域
     let mediaHtml = '';
     if (allMedia.length > 0) {
         if (allMedia.length > 1) {
@@ -304,8 +237,8 @@ function showProductDetail(product) {
             });
             mediaHtml = '<div class="carousel-container" style="position:relative;margin-bottom:12px" id="carouselContainer">' +
                 slidesHtml +
-                '<button class="carousel-prev" onclick="carouselGo(-1)" style="position:absolute;left:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;opacity:0.7">‹</button>' +
-                '<button class="carousel-next" onclick="carouselGo(1)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;opacity:0.7">›</button>' +
+                '<button class="carousel-prev" onclick="carouselGo(-1)" style="position:absolute;left:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.7">‹</button>' +
+                '<button class="carousel-next" onclick="carouselGo(1)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.7">›</button>' +
                 '<div class="carousel-counter" style="position:absolute;right:8px;top:8px;background:rgba(0,0,0,0.55);color:#fff;font-size:12px;padding:2px 7px;border-radius:10px;z-index:2">1/' + allMedia.length + '</div>' +
                 '<div class="carousel-dots" style="text-align:center;margin-top:8px">' + dotsHtml + '</div>' +
                 '</div>';
@@ -313,7 +246,7 @@ function showProductDetail(product) {
             if (allMedia[0].type === 'video') {
                 mediaHtml = '<div style="margin-bottom:12px"><video src="' + mediaUrl(allMedia[0].url) + '" controls playsinline preload="none" muted style="width:100%;max-height:300px;border-radius:8px;background:#000"></video></div>';
             } else {
-                mediaHtml = '<div style="margin-bottom:12px"><img src="' + mediaUrl(allMedia[0].url) + '" style="width:100%;max-width:100%;height:auto;border-radius:8px"></div>';
+                mediaHtml = '<div style="margin-bottom:12px"><img src="' + mediaUrl(allMedia[0].url) + '" style="width:100%;height:auto;border-radius:8px"></div>';
             }
         }
     }
@@ -334,7 +267,6 @@ function showProductDetail(product) {
         (product.remark ? '<div style="color:#e6a23c;font-size:13px;margin-top:8px;line-height:1.5">📌 ' + product.remark + '</div>' : '') +
         '</div>';
 
-    // 圆点点击 + 触摸滑动（统一用 carouselShow）
     if (allMedia.length > 1) {
         modal.querySelectorAll('.carousel-dot').forEach(dot => {
             dot.addEventListener('click', function() { carouselShow(parseInt(this.dataset.index)); });
@@ -344,11 +276,11 @@ function showProductDetail(product) {
         const carouselEl = modal.querySelector('#carouselContainer');
         if (carouselEl) {
             let startX = 0;
-            carouselEl.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, {passive:true});
+            carouselEl.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
             carouselEl.addEventListener('touchend', (e) => {
                 const diff = startX - e.changedTouches[0].clientX;
                 if (Math.abs(diff) > 40) carouselGo(diff > 0 ? 1 : -1);
-            }, {passive:true});
+            }, { passive: true });
         }
     }
 
@@ -358,7 +290,6 @@ function showProductDetail(product) {
     document.body.appendChild(modal);
 }
 
-// ---- 轮播导航（全局函数，供箭头按钮和滑动调用） ----
 let _carouselIndex = 0;
 
 function carouselShow(idx) {

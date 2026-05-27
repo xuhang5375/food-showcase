@@ -41,13 +41,49 @@
         </div>
     </div>
 
-    <script src="js/supabase-full.js"></script>
     <script>
-        const SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
-        window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        window.TABLE_NAME = 'food_showcase_products';
+    // 动态加载 supabase-full.js，带重试
+    function loadScript(src, retries = 3) {
+        return new Promise((resolve, reject) => {
+            function tryLoad(attempt) {
+                const s = document.createElement('script');
+                s.src = src + '?v=' + Date.now(); // 防缓存
+                s.onload = () => resolve();
+                s.onerror = () => {
+                    if (attempt < retries) {
+                        console.warn('脚本加载失败，重试...', src, attempt + 1);
+                        setTimeout(() => tryLoad(attempt + 1), 1000);
+                    } else {
+                        reject(new Error('加载失败: ' + src));
+                    }
+                };
+                document.head.appendChild(s);
+            }
+            tryLoad(0);
+        });
+    }
+
+    async function initApp() {
+        try {
+            await loadScript('js/supabase-full.js');
+            const SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
+            const SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
+            window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            window.TABLE_NAME = 'food_showcase_products';
+            // 加载主逻辑
+            await loadScript('js/app.js');
+        } catch (err) {
+            console.error('初始化失败:', err);
+            const el = document.getElementById('products');
+            if (el) {
+                el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>页面加载失败，<a href="javascript:location.reload()">点击刷新</a></p></div>';
+            } else {
+                document.body.innerHTML = '<div style="padding:40px;text-align:center;"><p>⚠️ 加载失败，<a href="javascript:location.reload()">点击刷新</a></p></div>';
+            }
+        }
+    }
+
+    initApp();
     </script>
-    <script src="js/app.js"></script>
 </body>
 </html>
