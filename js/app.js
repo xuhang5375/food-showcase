@@ -62,6 +62,7 @@ async function loadProducts() {
             const { data, error } = await getSupabase()
                 .from(TABLE_NAME)
                 .select('*')
+                .eq('is_active', true)
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
