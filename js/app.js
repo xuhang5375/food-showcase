@@ -25,18 +25,23 @@ function waitForSupabase() {
             }, 50);
             setTimeout(() => {
                 clearInterval(check);
-                console.error('Supabase 初始化超时');
+                reject(new Error('Supabase 初始化超时'));
             }, 5000);
         }
     });
 }
 
 (async function init() {
-    await waitForSupabase();
-    await loadProducts();
-    buildCategoryNav();
-    renderProducts();
-    bindEvents();
+    try {
+        await waitForSupabase();
+        await loadProducts();
+        buildCategoryNav();
+        renderProducts();
+        bindEvents();
+    } catch (err) {
+        console.error('初始化失败:', err);
+        document.getElementById('products').innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>加载失败，请刷新页面试试</p></div>';
+    }
 })();
 
 var COS_CDN_URL = window.COS_CDN_URL || 'https://799195375-1306702381.cos.ap-guangzhou.myqcloud.com';
