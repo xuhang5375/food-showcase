@@ -43,13 +43,15 @@ var COS_CDN_URL = window.COS_CDN_URL || 'https://799195375-1306702381.cos.ap-gua
 
 function mediaUrl(url) {
     if (!url) return url;
-    // 宸叉槸 COS URL
-    if (url.indexOf('799195375-1306702381') !== -1) return url;
-    // 涓达拷锟斤細灏嗘棫 Supabase Storage URL 閲嶅啓涓?COS CDN锛堣縼绉诲畬鎴愬墠鍏滃簳锛?
-    var supPrefix = 'infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/';
-    if (url.indexOf(supPrefix) !== -1) {
-        var rest = url.split(supPrefix)[1];
-        if (rest) return 'https://799195375-1306702381.cos.ap-guangzhou.myqcloud.com/' + rest;
+    // 灏嗙被 COS 浣嗘枃浠朵笉瀛樺湪鐨?URL 鍥炰覆鍒?Supabase Storage
+    // COS 鍥剧墖瀛樺湪鐩存帴鐢ㄣ€丆OS 瑙嗛鐩墠鍥炰覆鍒?Supabase
+    if (url.indexOf('799195375-1306702381') !== -1) {
+        if (url.indexOf('.mp4') !== -1) {
+            // COS 瑙嗛 404锛屽洖婧呭埌 Supabase Storage
+            var filename = url.split('/').pop();
+            return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/videos/' + filename;
+        }
+        return url;
     }
     return url;
 }
