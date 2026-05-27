@@ -62,12 +62,12 @@ async function loadProducts() {
             const { data, error } = await getSupabase()
                 .from(TABLE_NAME)
                 .select('*')
-                .eq('is_active', true)
+                .neq('is_active', false)
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
 
-            allProducts = (data || []).filter(p => p.is_active !== false);
+            allProducts = data || [];
             if (allProducts.length === 0) {
                 document.getElementById('products').innerHTML = '<div class="empty-state"><div class="empty-icon">馃摝</div><p>鏆傛棤鍟嗗搧</p></div>';
                 return;
