@@ -99,23 +99,18 @@ async function loadProducts() {
             });
 
             categories = [{ name: 'all', label: '全部' }];
-            const parentOrder = ['毛肚系列', '千层系列', '黑千层', '白千层', '虾滑', '肉类', '其他'];
-            const sortedParents = Array.from(catSet).sort((a, b) => {
-                const ia = parentOrder.indexOf(a);
-                const ib = parentOrder.indexOf(b);
+            const categoryOrder = ['黑千层', '白千层', '边角料', '毛肚片', '虾滑', '其他', '整肚'];
+            const sortedCats = Array.from(catSet).sort((a, b) => {
+                const ia = categoryOrder.indexOf(a);
+                const ib = categoryOrder.indexOf(b);
                 if (ia === -1 && ib === -1) return a.localeCompare(b, 'zh-CN');
                 if (ia === -1) return 1;
                 if (ib === -1) return -1;
                 return ia - ib;
             });
 
-            sortedParents.forEach(parent => {
-                categories.push({ name: parent, label: parent });
-                if (subMap[parent]) {
-                    Array.from(subMap[parent]).forEach(sub => {
-                        categories.push({ name: parent + '/' + sub, label: sub, parent: parent });
-                    });
-                }
+            sortedCats.forEach(cat => {
+                categories.push({ name: cat, label: cat });
             });
 
             buildCategoryNav();
