@@ -274,14 +274,18 @@ async function uploadVideoToSupabase(file) {
     });
 }
 
-// ---- 腾讯云 COS v5 签名辅助函数 ----
+// ---- 腾讯云 COS v1 签名辅助函数 ----
+// _cosHmacSha1(key, data): CryptoJS HmacSHA1(data, key)，返回 Base64
+// COS v1 要求: signKey = HMAC-SHA1(secretKey, keyTime)，即 keyTime 是数据，secretKey 是 key
 function _cosHmacSha1(key, data) { return CryptoJS.enc.Base64.stringify(CryptoJS.HmacSHA1(data, key)); }
 function _cosAuth(method, pathname) {
     var now = Math.floor(Date.now() / 1000);
     var exp = now + 3600;
     var keyTime = now + ';' + exp;
     var host = COS_BUCKET + '.cos.' + COS_REGION + '.myqcloud.com';
-    var signKey = _cosHmacSha1(COS_SECRET_KEY, keyTime);
+    // _cosHmacSha1(key, data) -> CryptoJS HmacSHA1(data, key)
+    // signKey = HMAC-SHA1(secretKey, keyTime): keyTime是数据，secretKey是key，所以参数要 swap
+    var signKey = _cosHmacSha1(keyTime, COS_SECRET_KEY);
     var headersStr = 'host\n' + host.toLowerCase() + '\n';
     var headersHash = CryptoJS.SHA1(headersStr).toString();
     var httpString = method.toLowerCase() + '\n' + pathname + '\n\n' + headersHash + '\n';
