@@ -240,17 +240,38 @@ async function uploadImageToSupabase(file) {
     });
 }
 
-// ---- COS 签名工具（修复双重HMAC）----
-function _cosHmacSha1(key, data) {
-    return CryptoJS.enc.Base64.stringify(CryptoJS.HmacSHA1(data, key));
-}
-function _cosAuth(method, pathname) {
-    var now = Math.floor(Date.now() / 1000); var exp = now + 3600; var keyTime = now + ';' + exp;
-    var signKey = _cosHmacSha1(COS_SECRET_KEY, keyTime);
-    var httpString = method.toLowerCase() + '\n' + pathname + '\n\n';
-    var stringToSign = 'sha1\n' + keyTime + '\n' + CryptoJS.SHA1(httpString).toString() + '\n';
-    var signature = _cosHmacSha1(signKey, stringToSign);
-    return 'q-sign-algorithm=sha1&q-ak=' + COS_SECRET_ID + '&q-sign-time=' + keyTime + '&q-key-time=' + keyTime + '&q-header-list=&q-url-param-list=&q-signature=' + signature;
+// ---- 上传视频到 Supabase Storage ----
+async function uploadVideoToSupabase(file) {
+    return new Promise(function(resolve, reject) {
+        var ext = file.name.split('.').pop();
+        var fileName = Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '.' + ext;
+        var url = window.SUPABASE_URL + '/storage/v1/object/product-media/videos/' + fileName;
+        var fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+        var xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener('progress', function(ev) {
+            if (ev.lengthComputable) { var pct = Math.round((ev.loaded / ev.total) * 100); showProgress('上传视频 ' + pct + '% (' + fileSizeMB + 'MB)'); }
+        });
+        xhr.addEventListener('load', function() {
+            hideProgress();
+            if (xhr.status >= 200 && xhr.status < 300) {
+                var publicUrl = window.SUPABASE_URL + '/storage/v1/object/public/product-media/videos/' + fileName;
+                console.log('视频上传成功:', publicUrl);
+                resolve(publicUrl);
+            } else {
+                console.error('视频上传失败:', xhr.status, xhr.responseText);
+                reject(new Error('视频上传失败: ' + xhr.status));
+            }
+        });
+        xhr.addEventListener('error', function() { hideProgress(); reject(new Error('网络错误')); });
+        xhr.addEventListener('timeout', function() { hideProgress(); reject(new Error('上传超时')); });
+        xhr.open('POST', url);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + window.SUPABASE_ANON_KEY);
+        xhr.setRequestHeader('apikey', window.SUPABASE_ANON_KEY);
+        xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+        xhr.setRequestHeader('x-upsert', 'true');
+        xhr.timeout = 300000;
+        xhr.send(file);
+    });
 }
 
 // ---- 上传文件到腾讯云 COS（带进度）----
@@ -292,7 +313,7 @@ async function saveProduct() {
         var imageUrls = [...existingImageUrls];
         if (newImageFiles.length > 0) { showProgress('上传 ' + newImageFiles.length + ' 张图片到云存储...'); for (var i = 0; i < newImageFiles.length; i++) { try { showProgress('上传图片 ' + (i+1) + '/' + newImageFiles.length + '...'); var uploadedUrl = await uploadImageToSupabase(newImageFiles[i].file); if (uploadedUrl) imageUrls.push(uploadedUrl); } catch(e) { console.error('图片上传失败:', e); showToast('第' + (i+1) + '张图片上传失败'); } } hideProgress(); }
         var videoUrl = existingVideoUrl || null;
-        if (newVideoFile) { showProgress('上传视频...'); var uploadedVideoUrl = await uploadToCOS(newVideoFile, 'videos'); if (uploadedVideoUrl) videoUrl = uploadedVideoUrl; hideProgress(); }
+        if (newVideoFile) { try { var uploadedVideoUrl = await uploadVideoToSupabase(newVideoFile); if (uploadedVideoUrl) videoUrl = uploadedVideoUrl; } catch(e) { console.error('视频上传失败:', e); showToast('视频上传失败'); videoUrl = null; } }
         var body = { name: name, description: desc, category: category, price: priceStr, code: code || null, specification: specification || null, images: imageUrls.length > 0 ? imageUrls : null, image_url: imageUrls.length > 0 ? imageUrls[0] : null, video_url: videoUrl || null };
         if (!editingId) body.is_active = true;
         console.log('保存数据:', body);

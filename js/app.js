@@ -27,16 +27,17 @@ var COS_CDN_URL = window.COS_CDN_URL || 'https://799195375-1306702381.cos.ap-gua
 
 function mediaUrl(url) {
     if (!url) return url;
-    // 图片已迁移到 Supabase，视频继续走 COS
+    // COS URL → 统一迁移到 Supabase Storage
     if (url.indexOf('799195375-1306702381') !== -1) {
-        if (url.indexOf('.mp4') !== -1) {
-            // 视频：继续走 COS
-            return url;
-        }
-        // 图片：COS URL 提取文件名，拼 Supabase 公网 URL
         var filename = url.split('/').pop();
+        if (url.indexOf('.mp4') !== -1) {
+            // 视频：COS → Supabase
+            return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/videos/' + filename;
+        }
+        // 图片：COS → Supabase
         return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/images/' + filename;
     }
+    // Supabase URL 或其他直接返回
     return url;
 }
 
