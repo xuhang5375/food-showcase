@@ -152,7 +152,7 @@ function renderProducts() {
             multiBadge = '<div class="multi-badge">' + p.images.length + '图</div>';
         }
         let videoBadge = '';
-        if (p.video_url) {
+        if (p.video) {
             videoBadge = '<div class="video-badge">▶</div>';
         }
         html += '<div class="product-card" data-id="' + p.id + '">' +
@@ -215,8 +215,8 @@ function showProductDetail(product) {
     } else if (product.image_url) {
         allMedia.push({ type: 'image', url: product.image_url });
     }
-    if (product.video_url) {
-        allMedia.push({ type: 'video', url: product.video_url });
+    if (product.video) {
+        allMedia.push({ type: 'video', url: product.video });
     }
 
     let mediaHtml = '';

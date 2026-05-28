@@ -334,7 +334,7 @@ async function saveProduct() {
         if (newImageFiles.length > 0) { showProgress('上传 ' + newImageFiles.length + ' 张图片到云存储...'); for (var i = 0; i < newImageFiles.length; i++) { try { showProgress('上传图片 ' + (i+1) + '/' + newImageFiles.length + '...'); var uploadedUrl = await uploadImageToSupabase(newImageFiles[i].file); if (uploadedUrl) imageUrls.push(uploadedUrl); } catch(e) { console.error('图片上传失败:', e); showToast('第' + (i+1) + '张图片上传失败'); } } hideProgress(); }
         var videoUrl = existingVideoUrl || null;
         if (newVideoFile) { try { var uploadedVideoUrl = await uploadToCOS(newVideoFile, 'videos'); if (uploadedVideoUrl) videoUrl = uploadedVideoUrl; } catch(e) { console.error('视频上传失败:', e); showToast('视频上传失败'); videoUrl = null; } }
-        var body = { name: name, description: desc, category: category, price: priceStr, code: code || null, specification: specification || null, images: imageUrls.length > 0 ? imageUrls : null, image_url: imageUrls.length > 0 ? imageUrls[0] : null, video_url: videoUrl || null };
+        var body = { name: name, description: desc, category: category, price: priceStr, code: code || null, specification: specification || null, images: imageUrls.length > 0 ? imageUrls : null, image_url: imageUrls.length > 0 ? imageUrls[0] : null, video: videoUrl || null };
         if (!editingId) body.is_active = true;
         console.log('保存数据:', body);
         var error;
@@ -364,7 +364,7 @@ async function editProduct(id) {
         existingImageUrls = []; newImageFiles = [];
         if (Array.isArray(data.images) && data.images.length > 0) existingImageUrls = [...data.images];
         else if (data.image_url) existingImageUrls = [data.image_url];
-        existingVideoUrl = data.video_url || null; newVideoFile = null;
+        existingVideoUrl = data.video || null; newVideoFile = null;
         renderImagePreview();
         if (existingVideoUrl) restoreExistingVideo();
         else { document.getElementById('videoPreview').innerHTML = ''; document.getElementById('videoUploadText').textContent = '🎬 点击上传视频'; }
