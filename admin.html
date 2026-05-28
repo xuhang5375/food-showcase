@@ -121,10 +121,10 @@
     <script type="module">
         import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-        const SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
+        window.SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
+        window.SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
 
-        window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
         window.ADMIN_PASSWORD = '920615';
         window.TABLE_NAME = 'food_showcase_products';
         window.BUCKET_NAME = 'product-media';
