@@ -274,6 +274,22 @@ async function uploadVideoToSupabase(file) {
     });
 }
 
+// ---- 腾讯云 COS v5 签名辅助函数 ----
+function _cosHmacSha1(key, data) { return CryptoJS.enc.Base64.stringify(CryptoJS.HmacSHA1(data, key)); }
+function _cosAuth(method, pathname) {
+    var now = Math.floor(Date.now() / 1000);
+    var exp = now + 3600;
+    var keyTime = now + ';' + exp;
+    var host = COS_BUCKET + '.cos.' + COS_REGION + '.myqcloud.com';
+    var signKey = _cosHmacSha1(COS_SECRET_KEY, keyTime);
+    var headersStr = 'host\n' + host.toLowerCase() + '\n';
+    var headersHash = CryptoJS.SHA1(headersStr).toString();
+    var httpString = method.toLowerCase() + '\n' + pathname + '\n\n' + headersHash + '\n';
+    var stringToSign = 'sha1\n' + keyTime + '\n' + CryptoJS.SHA1(httpString).toString() + '\n';
+    var signature = _cosHmacSha1(signKey, stringToSign);
+    return 'q-sign-algorithm=sha1&q-ak=' + COS_SECRET_ID + '&q-sign-time=' + keyTime + '&q-key-time=' + keyTime + '&q-header-list=host&q-url-param-list=&signature=' + signature;
+}
+
 // ---- 上传文件到腾讯云 COS（带进度）----
 async function uploadToCOS(file, folder) {
     var ext = file.name.split('.').pop();
@@ -291,7 +307,7 @@ async function uploadToCOS(file, folder) {
             xhr.addEventListener('load', function() { hideProgress(); if (xhr.status >= 200 && xhr.status < 300) { var publicUrl = COS_CDN_URL + '/' + key; console.log('COS上传成功:', publicUrl); resolve(publicUrl); } else { console.error('COS上传失败:', xhr.status, xhr.responseText); reject(new Error('上传失败: ' + xhr.status)); } });
             xhr.addEventListener('error', function() { hideProgress(); reject(new Error('网络错误，上传失败')); });
             xhr.addEventListener('timeout', function() { hideProgress(); reject(new Error('上传超时，请检查网络')); });
-            xhr.open('PUT', url); xhr.setRequestHeader('Authorization', authorization); xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream'); xhr.timeout = 120000; xhr.send(file);
+            xhr.open('PUT', url); xhr.setRequestHeader('Authorization', authorization); xhr.setRequestHeader('Host', host); xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream'); xhr.timeout = 120000; xhr.send(file);
         });
     } catch (e) { hideProgress(); console.error('COS upload exception:', e); return null; }
 }
@@ -313,7 +329,7 @@ async function saveProduct() {
         var imageUrls = [...existingImageUrls];
         if (newImageFiles.length > 0) { showProgress('上传 ' + newImageFiles.length + ' 张图片到云存储...'); for (var i = 0; i < newImageFiles.length; i++) { try { showProgress('上传图片 ' + (i+1) + '/' + newImageFiles.length + '...'); var uploadedUrl = await uploadImageToSupabase(newImageFiles[i].file); if (uploadedUrl) imageUrls.push(uploadedUrl); } catch(e) { console.error('图片上传失败:', e); showToast('第' + (i+1) + '张图片上传失败'); } } hideProgress(); }
         var videoUrl = existingVideoUrl || null;
-        if (newVideoFile) { try { var uploadedVideoUrl = await uploadVideoToSupabase(newVideoFile); if (uploadedVideoUrl) videoUrl = uploadedVideoUrl; } catch(e) { console.error('视频上传失败:', e); showToast('视频上传失败'); videoUrl = null; } }
+        if (newVideoFile) { try { var uploadedVideoUrl = await uploadToCOS(newVideoFile, 'videos'); if (uploadedVideoUrl) videoUrl = uploadedVideoUrl; } catch(e) { console.error('视频上传失败:', e); showToast('视频上传失败'); videoUrl = null; } }
         var body = { name: name, description: desc, category: category, price: priceStr, code: code || null, specification: specification || null, images: imageUrls.length > 0 ? imageUrls : null, image_url: imageUrls.length > 0 ? imageUrls[0] : null, video_url: videoUrl || null };
         if (!editingId) body.is_active = true;
         console.log('保存数据:', body);
