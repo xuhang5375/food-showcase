@@ -1,0 +1,15 @@
+# 敏感配置文件（通过 GitHub Actions 注入）
+js/config.js
+
+# 依赖
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
