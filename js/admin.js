@@ -285,12 +285,12 @@ function _cosAuth(method, pathname) {
     var host = COS_BUCKET + '.cos.' + COS_REGION + '.myqcloud.com';
     // _cosHmacSha1(key, data) -> CryptoJS HmacSHA1(data, key)
     // signKey = HMAC-SHA1(secretKey, keyTime): keyTime是数据，secretKey是key，所以参数要 swap
-    var signKey = _cosHmacSha1(keyTime, COS_SECRET_KEY);
+    var signKey = _cosHmacSha1(COS_SECRET_KEY, keyTime);
     var headersStr = 'host\n' + host.toLowerCase() + '\n';
     var headersHash = CryptoJS.SHA1(headersStr).toString();
     var httpString = method.toLowerCase() + '\n' + pathname + '\n\n' + headersHash + '\n';
     var stringToSign = 'sha1\n' + keyTime + '\n' + CryptoJS.SHA1(httpString).toString() + '\n';
-    var signature = _cosHmacSha1(signKey, stringToSign);
+    var signature = _cosHmacSha1(stringToSign, signKey);
     return 'q-sign-algorithm=sha1&q-ak=' + COS_SECRET_ID + '&q-sign-time=' + keyTime + '&q-key-time=' + keyTime + '&q-header-list=host&q-url-param-list=&signature=' + signature;
 }
 
