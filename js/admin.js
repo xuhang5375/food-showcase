@@ -305,6 +305,8 @@ async function uploadToCOS(file, folder) {
     showProgress('正在上传 ' + fileSizeMB + 'MB，请稍候...');
     try {
         var authorization = _cosAuth('PUT', pathname);
+        console.log('COS upload - URL:', url);
+        console.log('COS upload - Authorization:', authorization.substring(0, 80) + '...');
         return await new Promise(function(resolve, reject) {
             var xhr = new XMLHttpRequest();
             xhr.upload.addEventListener('progress', function(e) { if (e.lengthComputable) { var percent = Math.round((e.loaded / e.total) * 100); showProgress('上传中 ' + percent + '% (' + fileSizeMB + 'MB)'); } });
