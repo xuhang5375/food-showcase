@@ -5,8 +5,8 @@ const ADMIN_PASSWORD = '920615';
 const TABLE_NAME = 'food_showcase_products';
 
 // 腾讯云 COS 配置
-const COS_SECRET_ID = '[YOUR_COS_SECRET_ID]';
-const COS_SECRET_KEY = '[YOUR_COS_SECRET_KEY]';
+const COS_SECRET_ID = 'AKIDMuJYabXHpAJH3czBC3iKlMpAJGBya1GJ';
+const COS_SECRET_KEY = 'ub8VgfTr45tX1JVWLyObcQ3U2OXTIwQh';
 const COS_BUCKET = '799195375-1306702381';
 const COS_REGION = 'ap-guangzhou';
 const COS_BASE_URL = 'https://799195375-1306702381.cos.ap-guangzhou.myqcloud.com';
