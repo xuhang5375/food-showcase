@@ -275,23 +275,38 @@ async function uploadVideoToSupabase(file) {
 }
 
 // ---- 腾讯云 COS v1 签名辅助函数 ----
-// _cosHmacSha1(key, data): CryptoJS HmacSHA1(data, key)，返回 Base64
-// COS v1 要求: signKey = HMAC-SHA1(secretKey, keyTime)，即 keyTime 是数据，secretKey 是 key
-function _cosHmacSha1(key, data) { return CryptoJS.enc.Base64.stringify(CryptoJS.HmacSHA1(data, key)); }
+// 正确实现：严格按腾讯云 COS v1 文档
 function _cosAuth(method, pathname) {
     var now = Math.floor(Date.now() / 1000);
     var exp = now + 3600;
     var keyTime = now + ';' + exp;
-    var host = COS_BUCKET + '.cos.' + COS_REGION + '.myqcloud.com';
-    // _cosHmacSha1(key, data) -> CryptoJS HmacSHA1(data, key)
-    // signKey = HMAC-SHA1(secretKey, keyTime): keyTime是数据，secretKey是key，所以参数要 swap
-    var signKey = _cosHmacSha1(COS_SECRET_KEY, keyTime);
-    var headersStr = 'host\n' + host.toLowerCase() + '\n';
-    var headersHash = CryptoJS.SHA1(headersStr).toString();
-    var httpString = method.toLowerCase() + '\n' + pathname + '\n\n' + headersHash + '\n';
-    var stringToSign = 'sha1\n' + keyTime + '\n' + CryptoJS.SHA1(httpString).toString() + '\n';
-    var signature = _cosHmacSha1(stringToSign, signKey);
-    return 'q-sign-algorithm=sha1&q-ak=' + COS_SECRET_ID + '&q-sign-time=' + keyTime + '&q-key-time=' + keyTime + '&q-header-list=host&q-url-param-list=&signature=' + signature;
+    var host = (COS_BUCKET + '.cos.' + COS_REGION + '.myqcloud.com').toLowerCase();
+
+    // Step1: SignKey = HMAC-SHA1(SecretKey, KeyTime) -> hex 字符串
+    // CryptoJS.HmacSHA1(data, key) 参数顺序是 (data, key)
+    var signKeyHex = CryptoJS.enc.Hex.stringify(CryptoJS.HmacSHA1(keyTime, COS_SECRET_KEY));
+
+    // Step2: HttpString = HttpMethod\nHttpURI\nHttpParameters\nHttpHeaders\n
+    // HttpHeaders 格式: key=value\n （原始字符串，不是哈希！）
+    var httpString = method.toLowerCase() + '\n' + pathname + '\n\n' + 'host=' + host + '\n';
+    var httpStringHash = CryptoJS.enc.Hex.stringify(CryptoJS.SHA1(httpString));
+
+    // Step3: StringToSign = sha1\nKeyTime\nSHA1(HttpString)\n
+    var stringToSign = 'sha1\n' + keyTime + '\n' + httpStringHash + '\n';
+
+    // Step4: Signature = HMAC-SHA1(SignKey<bytes>, StringToSign) -> hex
+    // signKeyHex 是 hex 字符串，需先转成 WordArray（原始字节）再当 HMAC key
+    var signKeyWA = CryptoJS.enc.Hex.parse(signKeyHex);
+    var signature = CryptoJS.enc.Hex.stringify(CryptoJS.HmacSHA1(stringToSign, signKeyWA));
+
+    // Step5: 组装 Authorization
+    return 'q-sign-algorithm=sha1' +
+        '&q-ak=' + COS_SECRET_ID +
+        '&q-sign-time=' + keyTime +
+        '&q-key-time=' + keyTime +
+        '&q-header-list=host' +
+        '&q-url-param-list=' +
+        '&q-signature=' + signature;
 }
 
 // ---- 上传文件到腾讯云 COS（带进度）----
