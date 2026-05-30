@@ -295,8 +295,10 @@ function _cosAuth(method, pathname) {
     var stringToSign = 'sha1\n' + keyTime + '\n' + httpStringHash + '\n';
 
     // Step4: Signature = HMAC-SHA1(SignKey<bytes>, StringToSign) -> hex
-    // signKeyHex 是 hex 字符串，需先转成 WordArray（原始字节）再当 HMAC key
-    var signKeyWA = CryptoJS.enc.Hex.parse(signKeyHex);
+    // signKeyHex 是 hex 字符串，按官方文档以【字符串形式】当 HMAC key（UTF-8 编码，40字节）
+    // 官方 Node.js SDK: crypto.createHmac('sha1', signKey).update(stringToSign).digest('hex')
+    // 其中 signKey 是 40 字符的 hex 字符串，Node.js 以 UTF-8 字节传入 HMAC
+    var signKeyWA = CryptoJS.enc.Utf8.parse(signKeyHex);
     var signature = CryptoJS.enc.Hex.stringify(CryptoJS.HmacSHA1(stringToSign, signKeyWA));
 
     // Step5: 组装 Authorization
