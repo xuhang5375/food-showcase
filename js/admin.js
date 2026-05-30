@@ -313,7 +313,9 @@ function _cosAuth(method, pathname) {
 
 // ---- 上传文件到腾讯云 COS（带进度）----
 async function uploadToCOS(file, folder) {
-    var ext = file.name.split('.').pop();
+    var ext = (file.name.split('.').pop() || '').toLowerCase();
+    var mimeMap = { mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', avi: 'video/x-msvideo', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+    var contentType = mimeMap[ext] || file.type || 'application/octet-stream';
     var key = COS_UPLOAD_FOLDER + '/' + folder + '/' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '.' + ext;
     var fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
     var host = COS_BUCKET + '.cos.' + COS_REGION + '.myqcloud.com';
@@ -330,7 +332,7 @@ async function uploadToCOS(file, folder) {
             xhr.addEventListener('load', function() { hideProgress(); if (xhr.status >= 200 && xhr.status < 300) { var publicUrl = COS_CDN_URL + '/' + key; console.log('COS上传成功:', publicUrl); resolve(publicUrl); } else { console.error('COS上传失败:', xhr.status, xhr.responseText); reject(new Error('上传失败: ' + xhr.status)); } });
             xhr.addEventListener('error', function() { hideProgress(); reject(new Error('网络错误，上传失败')); });
             xhr.addEventListener('timeout', function() { hideProgress(); reject(new Error('上传超时，请检查网络')); });
-            xhr.open('PUT', url); xhr.setRequestHeader('Authorization', authorization); xhr.setRequestHeader('Host', host); xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream'); xhr.timeout = 120000; xhr.send(file);
+            xhr.open('PUT', url); xhr.setRequestHeader('Authorization', authorization); xhr.setRequestHeader('Host', host); xhr.setRequestHeader('Content-Type', contentType); xhr.timeout = 120000; xhr.send(file);
         });
     } catch (e) { hideProgress(); console.error('COS upload exception:', e); return null; }
 }
