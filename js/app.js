@@ -8,10 +8,24 @@ let allProducts = [];
 let categories = [];
 let currentCategory = 'all';
 let searchKeyword = '';
+let videoEnabled = true; // 默认显示视频，从 app_config 读取后覆盖
 
 // ---- 初始化 ----
 (async function init() {
     try {
+        // 读取视频开关配置
+        try {
+            const { data, error } = await window.supabase
+                .from('app_config')
+                .select('value')
+                .eq('key', 'video_enabled')
+                .single();
+            if (!error && data) {
+                videoEnabled = data.value === 'true';
+            }
+        } catch (e) {
+            console.warn('读取 video_enabled 配置失败，使用默认值:', e);
+        }
         await loadProducts();
         buildCategoryNav();
         renderProducts();
@@ -152,7 +166,7 @@ function renderProducts() {
             multiBadge = '<div class="multi-badge">' + p.images.length + '图</div>';
         }
         let videoBadge = '';
-        if (p.video) {
+        if (videoEnabled && p.video) {
             videoBadge = '<div class="video-badge">▶</div>';
         }
         html += '<div class="product-card" data-id="' + p.id + '">' +
@@ -215,7 +229,7 @@ function showProductDetail(product) {
     } else if (product.image_url) {
         allMedia.push({ type: 'image', url: product.image_url });
     }
-    if (product.video) {
+    if (videoEnabled && product.video) {
         allMedia.push({ type: 'video', url: product.video });
     }
 

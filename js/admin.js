@@ -39,6 +39,7 @@ function checkPassword() {
         document.getElementById('loginSection').style.display = 'none';
         document.getElementById('adminSection').style.display = 'block';
         loadProducts();
+        loadVideoToggle();
     } else {
         alert('密码错误');
         document.getElementById('passwordInput').value = '';
@@ -54,6 +55,49 @@ document.addEventListener('DOMContentLoaded', function() {
     var videoFile = document.getElementById('videoFile');
     if (videoFile) videoFile.addEventListener('change', handleVideoUpload);
 });
+
+// ---- 视频开关 ----
+async function loadVideoToggle() {
+    var btn = document.getElementById('videoToggleBtn');
+    if (!btn) return;
+    btn.textContent = '视频功能: 加载中...';
+    btn.disabled = true;
+    try {
+        var { data, error } = await getSupabase().from('app_config').select('value').eq('key', 'video_enabled').single();
+        if (error || !data) { btn.textContent = '视频功能: 未配置'; btn.disabled = false; return; }
+        var enabled = data.value === 'true';
+        btn.textContent = '视频功能: ' + (enabled ? '已开启' : '已关闭');
+        btn.style.background = enabled ? '#4caf50' : '#f5f5f5';
+        btn.style.color = enabled ? '#fff' : '#666';
+        btn.disabled = false;
+        btn.dataset.enabled = enabled ? 'true' : 'false';
+    } catch (e) {
+        btn.textContent = '视频功能: 加载失败';
+        btn.disabled = false;
+    }
+}
+
+async function toggleVideo() {
+    var btn = document.getElementById('videoToggleBtn');
+    if (!btn || btn.disabled) return;
+    var currentEnabled = btn.dataset.enabled === 'true';
+    var newEnabled = !currentEnabled;
+    if (!confirm('确定' + (newEnabled ? '开启' : '关闭') + '视频功能？')) return;
+    btn.disabled = true;
+    btn.textContent = '切换中...';
+    try {
+        var { error } = await getSupabase().from('app_config').update({ value: String(newEnabled) }).eq('key', 'video_enabled');
+        if (error) { alert('切换失败: ' + error.message); btn.disabled = false; return; }
+        btn.dataset.enabled = newEnabled ? 'true' : 'false';
+        btn.textContent = '视频功能: ' + (newEnabled ? '已开启' : '已关闭');
+        btn.style.background = newEnabled ? '#4caf50' : '#f5f5f5';
+        btn.style.color = newEnabled ? '#fff' : '#666';
+        showToast('视频功能已' + (newEnabled ? '开启' : '关闭'));
+    } catch (e) {
+        alert('切换失败: ' + e.message);
+    }
+    btn.disabled = false;
+}
 
 // ---- Toast ----
 function showToast(msg, duration) {
