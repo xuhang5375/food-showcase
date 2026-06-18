@@ -2,7 +2,7 @@
 // 食材采购 - 前台展示页逻辑
 // ========================================
 
-var TABLE_NAME = window.TABLE_NAME || 'food_showcase_products';
+var TABLE_NAME = window.TABLE_NAME || 'products';
 
 let allProducts = [];
 let categories = [];
