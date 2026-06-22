@@ -128,7 +128,11 @@ async function loadVideoToggle() {
 
     try {
 
-        var { data, error } = await getSupabase().from('app_config').select('value').eq('key', 'video_enabled').single();
+        var _vtUrl = window.SUPABASE_URL + '/rest/v1/app_config?key=eq.video_enabled&select=value&limit=1';
+        var _vtResp = await fetch(_vtUrl, { headers: { 'apikey': window.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + window.SUPABASE_ANON_KEY } });
+        var data = null, error = null;
+        if (!_vtResp.ok) { error = { message: 'HTTP ' + _vtResp.status }; }
+        else { try { var _vtArr = await _vtResp.json(); data = _vtArr.length > 0 ? _vtArr[0] : null; } catch(e) { error = e; } }
 
         if (error || !data) { btn.textContent = '视频功能: 未配置'; btn.disabled = false; return; }
 
@@ -174,7 +178,14 @@ async function toggleVideo() {
 
     try {
 
-        var { error } = await getSupabase().from('app_config').update({ value: String(newEnabled) }).eq('key', 'video_enabled');
+        var _tvBody = JSON.stringify({ value: String(newEnabled) });
+        var _tvResp = await fetch(window.SUPABASE_URL + '/rest/v1/app_config?key=eq.video_enabled', {
+            method: 'PATCH',
+            headers: { 'apikey': window.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + window.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+            body: _tvBody
+        });
+        var error = null;
+        if (!_tvResp.ok) { error = { message: 'HTTP ' + _tvResp.status }; }
 
         if (error) { alert('切换失败: ' + error.message); btn.disabled = false; return; }
 
@@ -248,7 +259,14 @@ async function loadProducts() {
 
     try {
 
-        var { data, error } = await getSupabase().from(TABLE_NAME).select('*').order('created_at', { ascending: false });
+        // Direct REST API call to bypass PostgREST schema cache issue
+        var _sbUrl = window.SUPABASE_URL + '/rest/v1/' + TABLE_NAME + '?select=*&order=created_at.desc';
+        var _resp = await fetch(_sbUrl, {
+            headers: { 'apikey': window.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + window.SUPABASE_ANON_KEY }
+        });
+        var data = null, error = null;
+        if (!_resp.ok) { error = { message: 'HTTP ' + _resp.status }; }
+        else { try { data = await _resp.json(); } catch(e) { error = e; } }
 
         if (error) { container.innerHTML = '<div style="color:red;padding:20px">加载失败: ' + error.message + '</div>'; return; }
 
@@ -380,7 +398,14 @@ async function toggleActive(id, currentActive) {
 
     try {
 
-        var { error } = await getSupabase().from(TABLE_NAME).update({ is_active: newActive }).eq('id', id);
+        var _taBody = JSON.stringify({ is_active: newActive });
+        var _taResp = await fetch(window.SUPABASE_URL + '/rest/v1/' + TABLE_NAME + '?id=eq.' + id, {
+            method: 'PATCH',
+            headers: { 'apikey': window.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + window.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+            body: _taBody
+        });
+        var error = null;
+        if (!_taResp.ok) { error = { message: 'HTTP ' + _taResp.status }; }
 
         if (error) { alert(action + '失败: ' + error.message); return; }
 
@@ -796,7 +821,7 @@ async function saveProduct() {
 
         if (newImageFiles.length > 0) { showProgress('上传 ' + newImageFiles.length + ' 张图片到云存储...'); for (var i = 0; i < newImageFiles.length; i++) { try { showProgress('上传图片 ' + (i+1) + '/' + newImageFiles.length + '...'); var uploadedUrl = await uploadImageToSupabase(newImageFiles[i].file); if (uploadedUrl) imageUrls.push(uploadedUrl); } catch(e) { console.error('图片上传失败:', e); showToast('第' + (i+1) + '张图片上传失败'); } } hideProgress(); }
 
-        // 保留原有视频URL，只有上传新视频或明确删除时才覆盖
+        // 保留原有视频URL，只有上传新视频或��确删除时才覆盖
 
         var videoUrl = existingVideoUrl;
 
@@ -810,9 +835,26 @@ async function saveProduct() {
 
         var error;
 
-        if (editingId) { var result = await getSupabase().from(TABLE_NAME).update(body).eq('id', editingId); error = result.error; }
+        if (editingId) {
+            var _spUrl2 = window.SUPABASE_URL + '/rest/v1/' + TABLE_NAME + '?id=eq.' + editingId;
+            var _spResp2 = await fetch(_spUrl2, {
+                method: 'PATCH',
+                headers: { 'apikey': window.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + window.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            var result = { error: !_spResp2.ok ? { message: 'HTTP ' + _spResp2.status } : null };
+            error = result.error;
+        }
 
-        else { var result = await getSupabase().from(TABLE_NAME).insert(body); error = result.error; }
+        else {
+            var _siResp = await fetch(window.SUPABASE_URL + '/rest/v1/' + TABLE_NAME, {
+                method: 'POST',
+                headers: { 'apikey': window.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + window.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            var result = { error: !_siResp.ok ? { message: 'HTTP ' + _siResp.status } : null };
+            error = result.error;
+        }
 
         if (error) { alert('保存失败: ' + error.message); return; }
 
@@ -834,7 +876,11 @@ async function editProduct(id) {
 
     try {
 
-        var { data, error } = await getSupabase().from(TABLE_NAME).select('*').eq('id', id).single();
+        var _epUrl = window.SUPABASE_URL + '/rest/v1/' + TABLE_NAME + '?id=eq.' + id + '&select=*&limit=1';
+        var _epResp = await fetch(_epUrl, { headers: { 'apikey': window.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + window.SUPABASE_ANON_KEY } });
+        var data = null, error = null;
+        if (!_epResp.ok) { error = { message: 'HTTP ' + _epResp.status }; }
+        else { try { var _epArr = await _epResp.json(); data = _epArr.length > 0 ? _epArr[0] : null; } catch(e) { error = e; } }
 
         if (error || !data) { alert('未找到该商品'); return; }
 
@@ -892,7 +938,13 @@ async function deleteProduct(id) {
 
     await waitForSupabase();
 
-    try { var { error } = await getSupabase().from(TABLE_NAME).delete().eq('id', id); if (error) { alert('删除失败: ' + error.message); return; } showToast('已删除'); loadProducts(); }
+    try {
+            var _dpResp = await fetch(window.SUPABASE_URL + '/rest/v1/' + TABLE_NAME + '?id=eq.' + id, {
+                method: 'DELETE',
+                headers: { 'apikey': window.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + window.SUPABASE_ANON_KEY }
+            });
+            var error = !_dpResp.ok ? { message: 'HTTP ' + _dpResp.status } : null;
+            if (error) { alert('删除失败: ' + error.message); return; } showToast('已删除'); loadProducts(); }
 
     catch (e) { alert('网络错误: ' + e.message); }
 
@@ -935,7 +987,11 @@ async function loadVisitorLogs() {
     if (!container) return;
     container.innerHTML = '<div style="text-align:center;padding:40px;color:#999">加载中...</div>';
     try {
-        var { data, error } = await getSupabase().from('visitor_logs').select('*').order('created_at', { ascending: false });
+        var _vlUrl = window.SUPABASE_URL + '/rest/v1/visitor_logs?select=*&order=created_at.desc';
+        var _vlResp = await fetch(_vlUrl, { headers: { 'apikey': window.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + window.SUPABASE_ANON_KEY } });
+        var data = null, error = null;
+        if (!_vlResp.ok) { error = { message: 'HTTP ' + _vlResp.status }; }
+        else { try { data = await _vlResp.json(); } catch(e) { error = e; } }scending: false });
         if (error) { container.innerHTML = '<div style="color:red;padding:20px">加载失败: ' + error.message + '</div>'; return; }
         allVisitorLogs = data || [];
         renderVisitorList(allVisitorLogs);
