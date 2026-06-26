@@ -11,7 +11,8 @@ let allProducts = [];
 let categories = [];
 let currentCategory = 'all';
 let searchKeyword = '';
-let videoEnabled = true; // 默认显示视频，从 app_config 读取后覆盖
+let videoEnabled = true;
+let visitorEnabled = false; // 访客弹窗开关，从 app_config 读取 // 默认显示视频，从 app_config 读取后覆盖
 
 // ---- 初始化 ----
 (async function init() {
@@ -35,6 +36,15 @@ let videoEnabled = true; // 默认显示视频，从 app_config 读取后覆盖
         buildCategoryNav();
         renderProducts();
         bindEvents();
+
+
+        // 访客弹窗
+
+        if (visitorEnabled && !localStorage.getItem('visitor_submitted')) {
+
+          showVisitorPopup();
+
+        }
     } catch (err) {
         console.error('初始化失败:', err);
         const el = document.getElementById('products');
@@ -340,3 +350,76 @@ function carouselGo(dir) {
     carouselShow(idx);
 }
 
+
+  // ---- 访客弹窗 ----
+  function showVisitorPopup() {
+    // 创建遮罩
+    var overlay = document.createElement('div');
+    overlay.id = 'visitorPopup';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    
+    var box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:12px;padding:28px 24px;width:90%;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.18);position:relative;';
+    
+    box.innerHTML = `
+      <h3 style="margin:0 0 18px 0;font-size:18px;color:#333;text-align:center;">访客登记</h3>
+      <div style="margin-bottom:14px;">
+        <input id="visitorName" type="text" placeholder="您的姓名（选填）" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:15px;box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:18px;">
+        <input id="visitorPhone" type="tel" placeholder="联系电话（必填）" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:15px;box-sizing:border-box;">
+      </div>
+      <button id="visitorSubmitBtn" onclick="submitVisitor()" style="width:100%;padding:11px 0;background:#4caf50;color:#fff;border:none;border-radius:6px;font-size:16px;cursor:pointer;">提交</button>
+      <button onclick="closeVisitorPopup()" style="width:100%;padding:9px 0;background:transparent;color:#999;border:1px solid #ddd;border-radius:6px;font-size:14px;cursor:pointer;margin-top:10px;">暂不登记</button>
+    `;
+    
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    
+    // 点击遮罩关闭
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) closeVisitorPopup();
+    });
+  }
+  
+  function closeVisitorPopup() {
+    var el = document.getElementById('visitorPopup');
+    if (el) el.remove();
+  }
+  
+  async function submitVisitor() {
+    var name = (document.getElementById('visitorName').value || '').trim();
+    var phone = (document.getElementById('visitorPhone').value || '').trim();
+    if (!phone) { alert('请填写联系电话'); return; }
+    var btn = document.getElementById('visitorSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = '提交中...';
+    try {
+      var now = new Date().toISOString();
+      var body = { name: name || '匿名', phone: phone, visit_time: now, page: '前台', openid: 'web' };
+      var resp = await fetch(SUPABASE_URL + '/rest/v1/visitor_logs', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(body)
+      });
+      if (!resp.ok) throw new Error('提交失败(' + resp.status + ')');
+      localStorage.setItem('visitor_submitted', 'true');
+      closeVisitorPopup();
+      // 轻提示
+      var t = document.createElement('div');
+      t.textContent = '登记成功，感谢！';
+      t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 24px;border-radius:8px;z-index:10001;font-size:14px;';
+      document.body.appendChild(t);
+      setTimeout(function() { t.remove(); }, 2000);
+    } catch (e) {
+      alert('提交失败: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = '提交';
+    }
+  }
+  
