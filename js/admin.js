@@ -25,24 +25,29 @@ let newImageFiles = [];
 let existingVideoUrl = null;
 let newVideoFile = null;
 
-// ---- REST API 封装 ----
+// ---- REST API 封装（带重试） ----
 function request(table, method, options = {}) {
+  return requestWithRetry(table, method, options, 0);
+}
+
+function requestWithRetry(table, method, options, retryCount) {
   return new Promise((resolve, reject) => {
     const { select = '*', filter = '', order = '', data = null, single = false } = options;
     let url = `${SUPABASE_URL}/rest/v1/${table}?select=${encodeURIComponent(select)}`;
     if (filter) url += `&${filter}`;
     if (order) url += `&order=${encodeURIComponent(order)}`;
-    
+
     const header = {
       'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      'Content-Type': 'application/json'
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
     };
+    // POST/PUT/PATCH 带请求体时才设置 Content-Type，GET 不设（避免触发 CORS 预检）
+    if (method !== 'GET' && data) header['Content-Type'] = 'application/json';
     if (single && method !== 'GET') header['Prefer'] = 'return=representation';
 
     const xhr = new XMLHttpRequest();
     xhr.open(method, url, true);
-    xhr.timeout = 15000;
+    xhr.timeout = 30000;
     Object.keys(header).forEach(k => xhr.setRequestHeader(k, header[k]));
     xhr.onload = function() {
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -58,8 +63,23 @@ function request(table, method, options = {}) {
         reject({ message: errMsg });
       }
     };
-    xhr.onerror = () => reject({ message: '网络连接失败，请检查网络后刷新页面重试' });
-    xhr.ontimeout = () => reject({ message: '请求超时（15秒），数据库响应太慢，请稍后重试' });
+    xhr.onerror = () => {
+      // 网络错误自动重试一次
+      if (retryCount < 1) {
+        console.log('网络错误，2秒后重试...');
+        setTimeout(() => requestWithRetry(table, method, options, retryCount + 1).then(resolve, reject), 2000);
+      } else {
+        reject({ message: '网络连接失败（已重试1次），请检查网络后刷新页面重试' });
+      }
+    };
+    xhr.ontimeout = () => {
+      if (retryCount < 1) {
+        console.log('请求超时，2秒后重试...');
+        setTimeout(() => requestWithRetry(table, method, options, retryCount + 1).then(resolve, reject), 2000);
+      } else {
+        reject({ message: '请求超时（30秒×2次），数据库响应太慢，请稍后重试或检查网络' });
+      }
+    };
     xhr.send(data ? JSON.stringify(data) : null);
   });
 }
