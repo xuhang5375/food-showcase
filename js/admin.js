@@ -161,24 +161,20 @@ async function loadProducts() {
 
     var html = '<div style="padding:12px 16px;display:flex;gap:8px;align-items:center">' +
       '<input id="adminSearch" type="text" placeholder="搜索商品名称/分类..." oninput="filterProducts()" style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px">' +
-      '<select id="adminStatusFilter" onchange="filterProducts()" style="padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px">' +
-      '<option value="all">全部</option><option value="active">已上架</option><option value="inactive">已下架</option></select></div>';
+      '</div>';
 
     html += '<div class="product-list" id="productListItems">';
     data.forEach(function(p) {
-      var isActive = p.is_active !== false;
       var priceText = '-';
-      if (p.price) { var pp = String(p.price).split('/'); priceText = pp[0] ? (pp[1] ? pp[0] + '/' + pp[1] : pp[0]) : '-'; }
-      var firstImg = (Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : (p.image_url || '');
+      if (p.price != null) { var unit = p.unit ? '/' + p.unit : ''; priceText = '¥' + p.price + unit; }
+      var firstImg = (Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : (p.cover_image || '');
       var coverImg = firstImg ? '<img src="' + firstImg + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px" onerror="this.style.display=\'none\'">' : '<div style="width:60px;height:60px;background:#eee;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:24px">📦</div>';
-      var badge = isActive ? '<span style="font-size:11px;padding:2px 6px;background:#4caf50;color:#fff;border-radius:3px">上架</span>' : '<span style="font-size:11px;padding:2px 6px;background:#999;color:#fff;border-radius:3px">下架</span>';
-      html += '<div class="product-item" data-name="' + (p.name||'').toLowerCase() + '" data-category="' + (p.category||'').toLowerCase() + '" data-active="' + isActive + '" style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #eee;gap:12px">' +
+      html += '<div class="product-item" data-name="' + (p.name||'').toLowerCase() + '" data-tag="' + (p.tag||'').toLowerCase() + '" style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #eee;gap:12px">' +
         coverImg +
         '<div style="flex:1;min-width:0">' +
-        '<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (p.name||'未命名') + ' ' + badge + '</div>' +
-        '<div style="color:#888;font-size:13px">' + (p.category||'未分类') + ' | ' + priceText + '</div></div>' +
+        '<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (p.name||'未命名') + '</div>' +
+        '<div style="color:#888;font-size:13px">' + (p.tag||'未分类') + ' | ' + priceText + '</div></div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-        '<button onclick="toggleActive(\'' + p.id + '\',' + isActive + ')" style="padding:6px 10px;border:none;border-radius:6px;background:' + (isActive?'#ff9800':'#4caf50') + ';color:#fff;cursor:pointer;font-size:12px">' + (isActive?'下架':'上架') + '</button>' +
         '<button onclick="editProduct(\'' + p.id + '\')" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">编辑</button>' +
         '<button onclick="deleteProduct(\'' + p.id + '\')" style="padding:6px 10px;border:none;border-radius:6px;background:#ff4444;color:#fff;cursor:pointer;font-size:12px">删除</button>' +
         '</div></div>';
@@ -193,37 +189,24 @@ async function loadProducts() {
 // ---- 搜索筛选 ----
 function filterProducts() {
   var keyword = (document.getElementById('adminSearch').value || '').toLowerCase().trim();
-  var statusFilter = document.getElementById('adminStatusFilter').value;
   var items = document.querySelectorAll('#productListItems .product-item');
   var visibleCount = 0;
   items.forEach(function(el) {
     var name = el.getAttribute('data-name') || '';
-    var cat = el.getAttribute('data-category') || '';
-    var isActive = el.getAttribute('data-active') === 'true';
-    var matchKw = !keyword || name.indexOf(keyword) >= 0 || cat.indexOf(keyword) >= 0;
-    var matchSt = statusFilter === 'all' || (statusFilter === 'active' && isActive) || (statusFilter === 'inactive' && !isActive);
-    var show = matchKw && matchSt;
-    el.style.display = show ? 'flex' : 'none';
-    if (show) visibleCount++;
+    var tag = el.getAttribute('data-tag') || '';
+    var matchKw = !keyword || name.indexOf(keyword) >= 0 || tag.indexOf(keyword) >= 0;
+    el.style.display = matchKw ? 'flex' : 'none';
+    if (matchKw) visibleCount++;
   });
   var tip = document.getElementById('noResultTip');
-  if (visibleCount === 0 && (keyword || statusFilter !== 'all')) {
+  if (visibleCount === 0 && keyword) {
     if (!tip) { tip = document.createElement('div'); tip.id = 'noResultTip'; tip.style.cssText = 'text-align:center;padding:40px;color:#999'; tip.textContent = '没有匹配的商品'; document.getElementById('productListItems').appendChild(tip); }
     tip.style.display = 'block';
   } else if (tip) { tip.style.display = 'none'; }
 }
 
 // ---- 上下架 ----
-async function toggleActive(id, currentActive) {
-  var newActive = !currentActive;
-  var action = newActive ? '上架' : '下架';
-  if (!confirm('确定' + action + '该商品？')) return;
-  try {
-    await request(TABLE_NAME, 'PATCH', { filter: 'id=eq.' + id, data: { is_active: newActive } });
-    showToast(action + '成功');
-    loadProducts();
-  } catch (e) { alert('网络错误: ' + e.message); }
-}
+// products 表无 is_active 字段，上下架功能已禁用。如需恢复请在 Supabase SQL 编辑器加列：ALTER TABLE products ADD COLUMN is_active boolean DEFAULT true;
 
 // ---- 显示/隐藏表单 ----
 function showAddForm() {
@@ -392,15 +375,13 @@ async function saveProduct() {
     var body = {
       name: name,
       description: desc,
-      category: category,
-      price: priceStr,
-      code: code || null,
-      specification: specification || null,
+      tag: category,
+      price: priceNum ? Number(priceNum) : null,
+      unit: unit,
       images: imageUrls.length > 0 ? imageUrls : null,
-      image_url: imageUrls.length > 0 ? imageUrls[0] : null,
+      cover_image: imageUrls.length > 0 ? imageUrls[0] : null,
       video: videoUrl
     };
-    if (!editingId) body.is_active = true;
 
     console.log('保存数据:', body);
 
@@ -435,16 +416,15 @@ async function editProduct(id) {
     document.getElementById('formTitle').textContent = '编辑商品';
     document.getElementById('productName').value = data.name || '';
     document.getElementById('productDesc').value = data.description || '';
-    document.getElementById('productCategory').value = data.category || '黑千层';
-    document.getElementById('productCode').value = data.code || '';
-    document.getElementById('productSpec').value = data.specification || '';
+    document.getElementById('productCategory').value = data.tag || '黑千层';
+    document.getElementById('productSpec').value = data.unit || '';
 
-    if (data.price) { var pp = data.price.split('/'); document.getElementById('productPriceNum').value = pp[0] || ''; document.getElementById('productPriceUnit').value = pp[1] || '箱'; }
+    if (data.price != null) { document.getElementById('productPriceNum').value = data.price; document.getElementById('productPriceUnit').value = data.unit || '箱'; }
     else { document.getElementById('productPriceNum').value = ''; document.getElementById('productPriceUnit').value = '箱'; }
 
     existingImageUrls = []; newImageFiles = [];
     if (Array.isArray(data.images) && data.images.length > 0) existingImageUrls = [...data.images];
-    else if (data.image_url) existingImageUrls = [data.image_url];
+    else if (data.cover_image) existingImageUrls = [data.cover_image];
 
     existingVideoUrl = (data.video && data.video.trim()) ? data.video : null;
     newVideoFile = null;

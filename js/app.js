@@ -46,12 +46,19 @@ var COS_CDN_URL = window.COS_CDN_URL || 'https://799195375-1306702381.cos.ap-gua
 
 function mediaUrl(url) {
     if (!url) return url;
-    // COS 图片 URL → 迁移到 Supabase Storage
-    if (url.indexOf('799195375-1306702381') !== -1 && url.indexOf('.mp4') === -1) {
-        var filename = url.split('/').pop();
-        return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/images/' + filename;
+    // 已是 http(s) URL
+    if (url.indexOf('http://') === 0 || url.indexOf('https://') === 0) {
+        // COS 图片 URL → 迁移到 Supabase Storage
+        if (url.indexOf('799195375-1306702381') !== -1 && url.indexOf('.mp4') === -1) {
+            var filename = url.split('/').pop();
+            return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/images/' + filename;
+        }
+        return url;
     }
-    // COS 视频 URL（新增视频走 COS）或其他 URL 直接返回
+    // 相对路径（如 "img/product_6_1.jpg" 或 "uploads/xxx.png"）
+    if (url.indexOf('/') !== 0) {
+        return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/' + url;
+    }
     return url;
 }
 
@@ -66,22 +73,23 @@ async function loadProducts() {
             if (!_resp.ok) throw new Error('HTTP ' + _resp.status);
             const data = await _resp.json();
 
-            // 过滤下架商品
-            allProducts = (data || []).filter(p => p.is_active !== false);
+            // products 表结构: id, name, price(数字), tag, unit, images[], cover_image, video, created_at
+            // 过滤：保留有名称的商品
+            allProducts = (data || []).filter(p => p.name);
             if (allProducts.length === 0) {
                 document.getElementById('products').innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>暂无商品</p></div>';
                 return;
             }
 
             allProducts.sort((a, b) => {
-                const priceA = a.price ? parseFloat(a.price.split('/')[0]) || 0 : 0;
-                const priceB = b.price ? parseFloat(b.price.split('/')[0]) || 0 : 0;
+                const priceA = parseFloat(a.price) || 0;
+                const priceB = parseFloat(b.price) || 0;
                 return priceA - priceB;
             });
 
             const catSet = new Set();
             allProducts.forEach(p => {
-                const cat = (p.category || '').trim();
+                const cat = (p.tag || '').trim();
                 if (!cat) return;
                 catSet.add(cat);
             });
@@ -131,7 +139,7 @@ function renderProducts() {
     let filtered = allProducts;
     if (currentCategory !== 'all') {
         filtered = filtered.filter(p => {
-            const cat = (p.category || '').trim();
+            const cat = (p.tag || '').trim();
             return cat === currentCategory || cat.startsWith(currentCategory + '/');
         });
     }
@@ -140,8 +148,8 @@ function renderProducts() {
         filtered = filtered.filter(p =>
             (p.name || '').toLowerCase().includes(kw) ||
             (p.description || '').toLowerCase().includes(kw) ||
-            (p.code || '').toLowerCase().includes(kw) ||
-            (p.category || '').toLowerCase().includes(kw)
+            (p.tag || '').toLowerCase().includes(kw) ||
+            (p.unit || '').toLowerCase().includes(kw)
         );
     }
     if (filtered.length === 0) {
@@ -152,15 +160,15 @@ function renderProducts() {
     let html = '<div class="product-grid">';
     filtered.forEach(p => {
         let priceText = '-';
-        if (p.price) {
-            const pp = p.price.split('/');
-            priceText = pp[0] ? ('¥' + pp[0] + (pp[1] ? '/' + pp[1] : '')) : '-';
+        if (p.price != null) {
+            const unit = p.unit ? '/' + p.unit : '';
+            priceText = '¥' + p.price + unit;
         }
         let firstImg = '';
         if (Array.isArray(p.images) && p.images.length > 0) {
             firstImg = mediaUrl(p.images[0]);
-        } else if (p.image_url) {
-            firstImg = mediaUrl(p.image_url);
+        } else if (p.cover_image) {
+            firstImg = mediaUrl(p.cover_image);
         }
         let coverHtml = firstImg
             ? '<img src="' + firstImg + '" onerror="this.style.display=\'none\'">'
@@ -178,10 +186,10 @@ function renderProducts() {
             '<div class="product-info">' +
             '<div class="product-name">' + (p.name || '未命名') + '</div>' +
             '<div class="product-meta">' +
-            '<span class="product-category">' + (p.category || '未分类') + '</span>' +
+            '<span class="product-category">' + (p.tag || '未分类') + '</span>' +
             '</div>' +
             '<div class="product-price">' + priceText + '</div>' +
-            (p.specification ? '<div class="product-spec" style="color:#666;font-size:12px;margin-top:2px">' + p.specification + '</div>' : '') +
+            (p.unit ? '<div class="product-spec" style="color:#666;font-size:12px;margin-top:2px">' + p.unit + '</div>' : '') +
             '</div>' +
             '</div>';
     });
@@ -222,16 +230,16 @@ function showProductDetail(product) {
     if (existing) existing.remove();
 
     let priceText = '-';
-    if (product.price) {
-        const pp = product.price.split('/');
-        priceText = pp[0] ? ('¥' + pp[0] + (pp[1] ? '/' + pp[1] : '')) : '-';
+    if (product.price != null) {
+        const unit = product.unit ? '/' + product.unit : '';
+        priceText = '¥' + product.price + unit;
     }
 
     let allMedia = [];
     if (Array.isArray(product.images) && product.images.length > 0) {
         product.images.forEach(url => { allMedia.push({ type: 'image', url: url }); });
-    } else if (product.image_url) {
-        allMedia.push({ type: 'image', url: product.image_url });
+    } else if (product.cover_image) {
+        allMedia.push({ type: 'image', url: product.cover_image });
     }
     if (videoEnabled && product.video) {
         allMedia.push({ type: 'video', url: product.video });
@@ -277,10 +285,9 @@ function showProductDetail(product) {
         '<h3 style="margin:0;font-size:18px">' + (product.name || '商品详情') + '</h3>' +
         '<button onclick="document.getElementById(\'detailModal\').remove()" style="border:none;background:#eee;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>' +
         '</div>' + mediaHtml +
-        '<div style="color:#888;font-size:13px;margin-bottom:6px">分类: ' + (product.category || '未分类') + '</div>' +
+        '<div style="color:#888;font-size:13px;margin-bottom:6px">分类: ' + (product.tag || '未分类') + '</div>' +
         '<div style="color:#f60;font-size:20px;font-weight:600;margin-bottom:8px">' + priceText + '</div>' +
-        (product.code ? '<div style="color:#888;font-size:12px">编码: ' + product.code + '</div>' : '') +
-        (product.specification ? '<div style="color:#666;font-size:13px;margin-top:4px">规格: ' + product.specification + '</div>' : '') +
+        (product.unit ? '<div style="color:#666;font-size:13px;margin-top:4px">规格: ' + product.unit + '</div>' : '') +
         (product.description ? '<div style="color:#666;font-size:14px;margin-top:12px;line-height:1.5">' + product.description + '</div>' : '') +
         (product.remark ? '<div style="color:#e6a23c;font-size:13px;margin-top:8px;line-height:1.5">📌 ' + product.remark + '</div>' : '') +
         '</div>';
