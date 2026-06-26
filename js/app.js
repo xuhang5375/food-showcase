@@ -2,7 +2,10 @@
 // 食材采购 - 前台展示页逻辑
 // ========================================
 
-var TABLE_NAME = window.TABLE_NAME || 'products';
+// Supabase 配置（硬编码，不依赖 CDN）
+var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
+var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
+var TABLE_NAME = 'food_showcase_products';
 
 let allProducts = [];
 let categories = [];
@@ -15,12 +18,14 @@ let videoEnabled = true; // 默认显示视频，从 app_config 读取后覆盖
     try {
         // 读取视频开关配置
         try {
-            const { data, error } = await window.supabase
-                .from('app_config')
-                .select('value')
-                .eq('key', 'video_enabled')
-                .single();
-            if (!error && data) {
+            const _cfgResp = await fetch(SUPABASE_URL + '/rest/v1/app_config?select=value&key=eq.video_enabled&limit=1', {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
+            });
+            const _cfgData = await _cfgResp.json();
+            const data = Array.isArray(_cfgData) ? _cfgData[0] : _cfgData;
+            if (!data) {
+                console.warn('读取 video_enabled 配置失败，使用默认值');
+            } else {
                 videoEnabled = data.value === 'true';
             }
         } catch (e) {
@@ -55,15 +60,14 @@ async function loadProducts() {
     let lastError = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            const { data, error } = await window.supabase
-                .from(TABLE_NAME)
-                .select('*')
-                .neq('is_active', false)
-                .order('created_at', { ascending: true });
+            const _resp = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE_NAME + '?select=*&order=created_at.asc', {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
+            });
+            if (!_resp.ok) throw new Error('HTTP ' + _resp.status);
+            const data = await _resp.json();
 
-            if (error) throw error;
-
-            allProducts = data || [];
+            // 过滤下架商品
+            allProducts = (data || []).filter(p => p.is_active !== false);
             if (allProducts.length === 0) {
                 document.getElementById('products').innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>暂无商品</p></div>';
                 return;
