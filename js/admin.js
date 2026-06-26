@@ -7,7 +7,7 @@ var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
 var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
 
 var ADMIN_PASSWORD = '920615';
-var TABLE_NAME = 'food_showcase_products';
+var TABLE_NAME = 'products';
 var BUCKET_NAME = 'product-media';
 
 // COS 配置（备用）

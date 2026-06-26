@@ -5,7 +5,7 @@
 // Supabase 配置（硬编码，不依赖 CDN）
 var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
 var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
-var TABLE_NAME = 'food_showcase_products';
+var TABLE_NAME = 'products';
 
 let allProducts = [];
 let categories = [];
@@ -254,10 +254,11 @@ function showProductDetail(product) {
             });
             mediaHtml = '<div class="carousel-container" style="position:relative;margin-bottom:12px" id="carouselContainer">' +
                 slidesHtml +
-                '<button class="carousel-prev" onclick="carouselGo(-1)" style="position:absolute;left:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.7">‹</button>' +
-                '<button class="carousel-next" onclick="carouselGo(1)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:rgba(0,0,0,0.45);color:#fff;font-size:18px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.7">›</button>' +
+                '<button class="carousel-prev" onclick="carouselGo(-1)" style="position:absolute;left:4px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;background:rgba(0,0,0,0.6);color:#fff;font-size:20px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.85;box-shadow:0 2px 6px rgba(0,0,0,0.3);font-weight:bold">‹</button>' +
+                '<button class="carousel-next" onclick="carouselGo(1)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;background:rgba(0,0,0,0.6);color:#fff;font-size:20px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.85;box-shadow:0 2px 6px rgba(0,0,0,0.3);font-weight:bold">›</button>' +
                 '<div class="carousel-counter" style="position:absolute;right:8px;top:8px;background:rgba(0,0,0,0.55);color:#fff;font-size:12px;padding:2px 7px;border-radius:10px;z-index:2">1/' + allMedia.length + '</div>' +
                 '<div class="carousel-dots" style="text-align:center;margin-top:8px">' + dotsHtml + '</div>' +
+                '<div style="text-align:center;color:#999;font-size:12px;margin-top:4px">← 左右滑动或点击箭头切换 →</div>' +
                 '</div>';
         } else {
             if (allMedia[0].type === 'video') {
