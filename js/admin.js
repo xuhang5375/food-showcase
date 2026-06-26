@@ -42,6 +42,7 @@ function request(table, method, options = {}) {
 
     const xhr = new XMLHttpRequest();
     xhr.open(method, url, true);
+    xhr.timeout = 15000;
     Object.keys(header).forEach(k => xhr.setRequestHeader(k, header[k]));
     xhr.onload = function() {
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -52,10 +53,13 @@ function request(table, method, options = {}) {
           resolve(null);
         }
       } else {
-        reject({ message: `HTTP ${xhr.status}: ${xhr.responseText}` });
+        let errMsg = `数据库返回错误 ${xhr.status}`;
+        try { const d = JSON.parse(xhr.responseText); if(d.message) errMsg += '：' + d.message; } catch(e) {}
+        reject({ message: errMsg });
       }
     };
-    xhr.onerror = () => reject({ message: '网络错误' });
+    xhr.onerror = () => reject({ message: '网络连接失败，请检查网络后刷新页面重试' });
+    xhr.ontimeout = () => reject({ message: '请求超时（15秒），数据库响应太慢，请稍后重试' });
     xhr.send(data ? JSON.stringify(data) : null);
   });
 }
