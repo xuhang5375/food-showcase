@@ -93,6 +93,7 @@ function checkPassword() {
     document.getElementById('adminSection').style.display = 'block';
     loadProducts();
     loadVideoToggle();
+    loadVisitorPopupToggle();
   } else {
     alert('密码错误');
     document.getElementById('passwordInput').value = '';
@@ -158,7 +159,57 @@ async function toggleVideo() {
   btn.disabled = false;
 }
 
-// ---- Toast ----
+  // ---- 访客弹窗开关 ----
+  async function loadVisitorPopupToggle() {
+    var btn = document.getElementById('visitorPopupToggleBtn');
+    if (!btn) return;
+    btn.textContent = '访客弹窗: 加载中...';
+    btn.disabled = true;
+    try {
+      const data = await request('app_config', 'GET', {
+        select: 'value',
+        filter: 'key=eq.visitor_enabled',
+        single: true
+      });
+      if (!data) { btn.textContent = '访客弹窗: 未配置'; btn.disabled = false; return; }
+      var enabled = data.value === 'true';
+      btn.textContent = '访客弹窗: ' + (enabled ? '已开启' : '已关闭');
+      btn.style.background = enabled ? '#4caf50' : '#f5f5f5';
+      btn.style.color = enabled ? '#fff' : '#666';
+      btn.disabled = false;
+      btn.dataset.enabled = enabled ? 'true' : 'false';
+    } catch (e) {
+      btn.textContent = '访客弹窗: 加载失败';
+      btn.disabled = false;
+    }
+  }
+
+  async function toggleVisitorPopup() {
+    var btn = document.getElementById('visitorPopupToggleBtn');
+    if (!btn || btn.disabled) return;
+    var currentEnabled = btn.dataset.enabled === 'true';
+    var newEnabled = !currentEnabled;
+    if (!confirm('确定' + (newEnabled ? '开启' : '关闭') + '访客弹窗？')) return;
+    btn.disabled = true;
+    btn.textContent = '切换中...';
+    try {
+      await request('app_config', 'PATCH', {
+        filter: 'key=eq.visitor_enabled',
+        data: { value: String(newEnabled) }
+      });
+      btn.dataset.enabled = newEnabled ? 'true' : 'false';
+      btn.textContent = '访客弹窗: ' + (newEnabled ? '已开启' : '已关闭');
+      btn.style.background = newEnabled ? '#4caf50' : '#f5f5f5';
+      btn.style.color = newEnabled ? '#fff' : '#666';
+      showToast('访客弹窗已' + (newEnabled ? '开启' : '关闭'));
+    } catch (e) {
+      alert('切换失败: ' + e.message);
+    }
+    btn.disabled = false;
+  }
+
+  // ---- Toast ----
+
 function showToast(msg, duration) {
   duration = duration || 2000;
   var t = document.getElementById('toast');
