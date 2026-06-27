@@ -1,4 +1,4 @@
-// ========================================
+﻿// ========================================
 // food-showcase 管理后台逻辑
 // ========================================
 
@@ -7,7 +7,7 @@ var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
 var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
 
 var ADMIN_PASSWORD = '920615';
-var TABLE_NAME = 'products';
+var TABLE_NAME = 'food_showcase_products';
 var BUCKET_NAME = 'product-media';
 
 // COS 配置（备用）
@@ -244,11 +244,11 @@ async function loadProducts() {
       if (p.price != null) { var unit = p.unit ? '/' + p.unit : ''; priceText = '¥' + p.price + unit; }
       var firstImg = (Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : (p.cover_image || '');
       var coverImg = firstImg ? '<img src="' + firstImg + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px" onerror="this.style.display=\'none\'">' : '<div style="width:60px;height:60px;background:#eee;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:24px">📦</div>';
-      html += '<div class="product-item" data-name="' + (p.name||'').toLowerCase() + '" data-tag="' + (p.tag||'').toLowerCase() + '" style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #eee;gap:12px">' +
+      html += '<div class="product-item" data-name="' + (p.name||'').toLowerCase() + '" data-tag="' + (p.category||'').toLowerCase() + '" style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #eee;gap:12px">' +
         coverImg +
         '<div style="flex:1;min-width:0">' +
         '<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (p.name||'未命名') + '</div>' +
-        '<div style="color:#888;font-size:13px">' + (p.tag||'未分类') + ' | ' + priceText + '</div></div>' +
+        '<div style="color:#888;font-size:13px">' + (p.category||'未分类') + ' | ' + priceText + '</div></div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
         '<button onclick="editProduct(\'' + p.id + '\')" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">编辑</button>' +
         '<button onclick="deleteProduct(\'' + p.id + '\')" style="padding:6px 10px;border:none;border-radius:6px;background:#ff4444;color:#fff;cursor:pointer;font-size:12px">删除</button>' +
@@ -450,7 +450,7 @@ async function saveProduct() {
     var body = {
       name: name,
       description: desc,
-      tag: category,
+      category: category,
       price: priceNum ? Number(priceNum) : null,
       unit: unit,
       images: imageUrls.length > 0 ? imageUrls : null,
@@ -491,7 +491,7 @@ async function editProduct(id) {
     document.getElementById('formTitle').textContent = '编辑商品';
     document.getElementById('productName').value = data.name || '';
     document.getElementById('productDesc').value = data.description || '';
-    document.getElementById('productCategory').value = data.tag || '黑千层';
+    document.getElementById('productCategory').value = data.category || '黑千层';
     document.getElementById('productSpec').value = data.unit || '';
 
     if (data.price != null) { document.getElementById('productPriceNum').value = data.price; document.getElementById('productPriceUnit').value = data.unit || '箱'; }
