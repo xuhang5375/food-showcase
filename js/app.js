@@ -5,7 +5,7 @@
 // Supabase 配置（硬编码，不依赖 CDN）
 var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
 var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
-var TABLE_NAME = 'products';
+var TABLE_NAME = 'food_showcase_products';
 
 let allProducts = [];
 let categories = [];
@@ -99,7 +99,7 @@ async function loadProducts() {
 
             const catSet = new Set();
             allProducts.forEach(p => {
-                const cat = (p.tag || '').trim();
+                const cat = (p.category || '').trim();
                 if (!cat) return;
                 catSet.add(cat);
             });
@@ -149,7 +149,7 @@ function renderProducts() {
     let filtered = allProducts;
     if (currentCategory !== 'all') {
         filtered = filtered.filter(p => {
-            const cat = (p.tag || '').trim();
+            const cat = (p.category || '').trim();
             return cat === currentCategory || cat.startsWith(currentCategory + '/');
         });
     }
@@ -158,7 +158,7 @@ function renderProducts() {
         filtered = filtered.filter(p =>
             (p.name || '').toLowerCase().includes(kw) ||
             (p.description || '').toLowerCase().includes(kw) ||
-            (p.tag || '').toLowerCase().includes(kw) ||
+            (p.category || '').toLowerCase().includes(kw) ||
             (p.unit || '').toLowerCase().includes(kw)
         );
     }
@@ -196,7 +196,7 @@ function renderProducts() {
             '<div class="product-info">' +
             '<div class="product-name">' + (p.name || '未命名') + '</div>' +
             '<div class="product-meta">' +
-            '<span class="product-category">' + (p.tag || '未分类') + '</span>' +
+            '<span class="product-category">' + (p.category || '未分类') + '</span>' +
             '</div>' +
             '<div class="product-price">' + priceText + '</div>' +
             (p.unit ? '<div class="product-spec" style="color:#666;font-size:12px;margin-top:2px">' + p.unit + '</div>' : '') +
@@ -295,7 +295,7 @@ function showProductDetail(product) {
         '<h3 style="margin:0;font-size:18px">' + (product.name || '商品详情') + '</h3>' +
         '<button onclick="document.getElementById(\'detailModal\').remove()" style="border:none;background:#eee;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>' +
         '</div>' + mediaHtml +
-        '<div style="color:#888;font-size:13px;margin-bottom:6px">分类: ' + (product.tag || '未分类') + '</div>' +
+        '<div style="color:#888;font-size:13px;margin-bottom:6px">分类: ' + (product.category || '未分类') + '</div>' +
         '<div style="color:#f60;font-size:20px;font-weight:600;margin-bottom:8px">' + priceText + '</div>' +
         (product.unit ? '<div style="color:#666;font-size:13px;margin-top:4px">规格: ' + product.unit + '</div>' : '') +
         (product.description ? '<div style="color:#666;font-size:14px;margin-top:12px;line-height:1.5">' + product.description + '</div>' : '') +
