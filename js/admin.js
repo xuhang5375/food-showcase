@@ -8,7 +8,7 @@ var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
 
 var ADMIN_PASSWORD = '920615';
 var TABLE_NAME = 'food_showcase_products';
-var BUCKET_NAME = 'product-media';
+var BUCKET_NAME = 'xiaochengxu';
 
 // COS 配置（备用）
 var COS_SECRET_ID = '';
@@ -343,7 +343,7 @@ async function uploadImageToSupabase(file) {
   return new Promise(function(resolve, reject) {
     var ext = file.name.split('.').pop();
     var fileName = Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '.' + ext;
-    var url = SUPABASE_URL + '/storage/v1/object/product-media/images/' + fileName;
+    var url = SUPABASE_URL + '/storage/v1/object/xiaochengxu/images/' + fileName;
 
     var xhr = new XMLHttpRequest();
     xhr.upload.addEventListener('progress', function(ev) {
@@ -352,7 +352,7 @@ async function uploadImageToSupabase(file) {
     xhr.addEventListener('load', function() {
       hideProgress();
       if (xhr.status >= 200 && xhr.status < 300) {
-        var publicUrl = SUPABASE_URL + '/storage/v1/object/public/product-media/images/' + fileName;
+        var publicUrl = SUPABASE_URL + '/storage/v1/object/public/xiaochengxu/images/' + fileName;
         console.log('Supabase上传成功:', publicUrl);
         resolve(publicUrl);
       } else {
@@ -378,7 +378,7 @@ async function uploadVideoToSupabase(file) {
   return new Promise(function(resolve, reject) {
     var ext = file.name.split('.').pop();
     var fileName = Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '.' + ext;
-    var url = SUPABASE_URL + '/storage/v1/object/product-media/videos/' + fileName;
+    var url = SUPABASE_URL + '/storage/v1/object/xiaochengxu/videos/' + fileName;
     var fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
 
     var xhr = new XMLHttpRequest();
@@ -388,7 +388,7 @@ async function uploadVideoToSupabase(file) {
     xhr.addEventListener('load', function() {
       hideProgress();
       if (xhr.status >= 200 && xhr.status < 300) {
-        var publicUrl = SUPABASE_URL + '/storage/v1/object/public/product-media/videos/' + fileName;
+        var publicUrl = SUPABASE_URL + '/storage/v1/object/public/xiaochengxu/videos/' + fileName;
         console.log('视频上传成功:', publicUrl);
         resolve(publicUrl);
       } else {
