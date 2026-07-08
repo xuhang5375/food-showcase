@@ -3,8 +3,8 @@
 // ========================================
 
 // Supabase 配置（硬编码，不依赖 CDN）
-var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
-var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
+var SUPABASE_URL = 'https://rihlfwgrqdxgygyvatda.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpaGxmd2dycWR4Z3lneXZhdGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTgwMTksImV4cCI6MjA5NzMzNDAxOX0.rwtwihYhMNtuW4xzemZUkeTD3YOhswpThr8A2ieJfZs';
 var TABLE_NAME = 'food_showcase_products';
 
 let allProducts = [];
@@ -61,13 +61,13 @@ function mediaUrl(url) {
         // COS 图片 URL → 迁移到 Supabase Storage
         if (url.indexOf('799195375-1306702381') !== -1 && url.indexOf('.mp4') === -1) {
             var filename = url.split('/').pop();
-            return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/images/' + filename;
+            return 'https://rihlfwgrqdxgygyvatda.supabase.co/storage/v1/object/public/product-media/images/' + filename;
         }
         return url;
     }
     // 相对路径（如 "img/product_6_1.jpg" 或 "uploads/xxx.png"）
     if (url.indexOf('/') !== 0) {
-        return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/' + url;
+        return 'https://rihlfwgrqdxgygyvatda.supabase.co/storage/v1/object/public/product-media/' + url;
     }
     return url;
 }
