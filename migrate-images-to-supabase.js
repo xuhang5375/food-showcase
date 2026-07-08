@@ -8,8 +8,8 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
+const SUPABASE_URL = 'https://rihlfwgrqdxgygyvatda.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpaGxmd2dycWR4Z3lneXZhdGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTgwMTksImV4cCI6MjA5NzMzNDAxOX0.rwtwihYhMNtuW4xzemZUkeTD3YOhswpThr8A2ieJfZs';
 const BUCKET = 'product-media';
 const LOCAL_DIR = 'D:\\food-media-download\\files';
 const TABLE_NAME = 'food_showcase_products';
@@ -63,7 +63,7 @@ function uploadToSupabase(localPath, storagePath) {
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(`https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/${uploadPath}`);
+          resolve(`https://rihlfwgrqdxgygyvatda.supabase.co/storage/v1/object/public/${uploadPath}`);
         } else {
           reject(new Error(`HTTP ${res.statusCode}: ${data}`));
         }
