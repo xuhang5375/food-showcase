@@ -61,13 +61,13 @@ function mediaUrl(url) {
         // COS 图片 URL → 迁移到 Supabase Storage
         if (url.indexOf('799195375-1306702381') !== -1 && url.indexOf('.mp4') === -1) {
             var filename = url.split('/').pop();
-            return 'https://rihlfwgrqdxgygyvatda.supabase.co/storage/v1/object/public/product-media/images/' + filename;
+            return 'https://rihlfwgrqdxgygyvatda.supabase.co/storage/v1/object/public/xiaochengxu/images/' + filename;
         }
         return url;
     }
     // 相对路径（如 "img/product_6_1.jpg" 或 "uploads/xxx.png"）
     if (url.indexOf('/') !== 0) {
-        return 'https://rihlfwgrqdxgygyvatda.supabase.co/storage/v1/object/public/product-media/' + url;
+        return 'https://rihlfwgrqdxgygyvatda.supabase.co/storage/v1/object/public/xiaochengxu/' + url;
     }
     return url;
 }
