@@ -66,8 +66,8 @@
     async function initApp() {
         try {
             await loadScript('js/supabase-full.js');
-            const SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
-            const SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
+            const SUPABASE_URL = 'https://rihlfwgrqdxgygyvatda.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpaGxmd2dycWR4Z3lneXZhdGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTgwMTksImV4cCI6MjA5NzMzNDAxOX0.rwtwihYhMNtuW4xzemZUkeTD3YOhswpThr8A2ieJfZs';
             window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             window.TABLE_NAME = 'food_showcase_products';
             // 加载主逻辑
