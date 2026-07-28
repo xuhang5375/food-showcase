@@ -3,9 +3,9 @@
 // ========================================
 
 // Supabase 配置（硬编码，不依赖 CDN）
-var SUPABASE_URL = 'https://rihlfwgrqdxgygyvatda.supabase.co';
-var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpaGxmd2dycWR4Z3lneXZhdGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTgwMTksImV4cCI6MjA5NzMzNDAxOX0.rwtwihYhMNtuW4xzemZUkeTD3YOhswpThr8A2ieJfZs';
-var TABLE_NAME = 'food_showcase_products';
+var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
+var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
+var TABLE_NAME = 'products';
 
 let allProducts = [];
 let categories = [];
@@ -27,7 +27,7 @@ let visitorEnabled = false; // 访客弹窗开关，从 app_config 读取 // 默
             if (!data) {
                 console.warn('读取 video_enabled 配置失败，使用默认值');
             } else {
-                videoEnabled = data.value === 'true';
+                videoEnabled = true;
             }
         } catch (e) {
             console.warn('读取 video_enabled 配置失败，使用默认值:', e);
