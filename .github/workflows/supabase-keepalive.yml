@@ -1,0 +1,18 @@
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    # Every 3 days at 9:00 AM UTC = 17:00 CST
+    - cron: '0 9 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase food_showcase_products
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD" \
+            -H "Authorization: Bearer sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD" \
+            "https://infsqrfqksvqzlapvott.supabase.co/rest/v1/food_showcase_products?select=id&limit=1"
