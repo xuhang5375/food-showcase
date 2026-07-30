@@ -4,7 +4,7 @@
 
 // Supabase 配置（硬编码，不依赖 CDN）
 var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
-var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imluc2VxcmZxZ3Frc3Z6bGFwdm90dCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzQ5NDIzMTE1LCJleHAiOjIwODU5NzkxMTV9.d82jVPnBGC1q8eJxqCPgXgTJPdxqJV2LBPyauHTa0jA';
+var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
 var TABLE_NAME = 'food_showcase_products';
 
 let allProducts = [];
