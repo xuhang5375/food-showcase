@@ -30,7 +30,7 @@ let visitorEnabled = false; // 访客弹窗开关，从 app_config 读取 // 默
                 videoEnabled = true;
             }
         } catch (e) {
-            console.warn('读取 video_enabled 配置失败，使用默认值:', e);
+            console.warn('读取 video_enabled ��置失败，使用默认值:', e);
         }
         await loadProducts();
         buildCategoryNav();
@@ -61,13 +61,13 @@ function mediaUrl(url) {
         // COS 图片 URL → 迁移到 Supabase Storage
         if (url.indexOf('799195375-1306702381') !== -1 && url.indexOf('.mp4') === -1) {
             var filename = url.split('/').pop();
-            return 'https://rihlfwgrqdxgygyvatda.supabase.co/storage/v1/object/public/xiaochengxu/images/' + filename;
+            return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/xiaochengxu/images/' + filename;
         }
         return url;
     }
     // 相对路径（如 "img/product_6_1.jpg" 或 "uploads/xxx.png"）
     if (url.indexOf('/') !== 0) {
-        return 'https://rihlfwgrqdxgygyvatda.supabase.co/storage/v1/object/public/xiaochengxu/' + url;
+        return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/xiaochengxu/' + url;
     }
     return url;
 }
