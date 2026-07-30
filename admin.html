@@ -67,7 +67,7 @@
             <div class="form-group"><label>商品名称 *</label><input type="text" id="productName" placeholder="如：2斤精品水牛切叶" required></div>
 
             <div class="form-row"><div class="form-group flex1"><label>商品编码</label><input type="text" id="productCode" placeholder="如：2JPSNQYP"></div><div class="form-group flex1"><label>分类</label><select id="productCategory"><option value="黑千层">黑千层</option><option value="白千层">白千层</option><option value="毛肚片">毛肚片</option><option value="整肚">整肚</option><option value="边角料">边角料</option><option value="虾滑">虾滑</option><option value="其他">其他</option>
-                        <option value="烧烤系列">烧烤系列</option>
+                        <option value="��烤系列">烧烤系列</option>
                         <option value="火锅食材">火锅食材</option></select></div></div>
 
             <div class="form-row"><div class="form-group flex1"><label>规格</label><input type="text" id="productSpec" placeholder="如：1件*25袋*2斤"></div><div class="form-row-inner"><div class="form-group flex1"><label>价格(元)</label><input type="number" id="productPriceNum" placeholder="数字" min="0" step="0.01"></div><div class="form-group flex1"><label>单位</label><select id="productPriceUnit"><option value="箱">箱</option><option value="斤">斤</option><option value="袋">袋</option><option value="kg">kg</option><option value="包">包</option><option value="件">件</option></select></div></div></div>
@@ -114,9 +114,9 @@
 
         import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-        window.SUPABASE_URL = 'https://rihlfwgrqdxgygyvatda.supabase.co';
+        window.SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
 
-        window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpaGxmd2dycWR4Z3lneXZhdGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTgwMTksImV4cCI6MjA5NzMzNDAxOX0.rwtwihYhMNtuW4xzemZUkeTD3YOhswpThr8A2ieJfZs';
+        window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imluc2VxcmZxZ3Frc3Z6bGFwdm90dCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzQ5NDIzMTE1LCJleHAiOjIwODU5NzkxMTV9.d82jVPnBGC1q8eJxqCPgXgTJPdxqJV2LBPyauHTa0jA';
 
         window.supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
