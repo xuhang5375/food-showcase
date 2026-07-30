@@ -5,7 +5,7 @@
 // Supabase 配置（硬编码，不依赖 CDN）
 var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
 var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
-var TABLE_NAME = 'products';
+var TABLE_NAME = 'food_showcase_products';
 
 let allProducts = [];
 let categories = [];
