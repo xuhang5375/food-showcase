@@ -264,7 +264,7 @@ function bindEvents() {
     document.getElementById('products').addEventListener('click', function(e) {
         const card = e.target.closest('.product-card');
         if (!card) return;
-        const product = allProducts.find(p => p.id === card.dataset.id);
+        const product = allProducts.find(p => String(p.id) === card.dataset.id);
         if (product) showProductDetail(product);
     });
 }
@@ -486,7 +486,7 @@ function showVisitorRegister() {
     modal.innerHTML = '<div style="background:#fff;border-radius:16px;width:90%;max-width:360px;padding:28px 24px 24px;text-align:center">' +
         '<div style="font-size:48px;margin-bottom:12px">📋</div>' +
         '<div style="font-size:18px;font-weight:600;color:#1a1a1a;margin-bottom:4px">访客登记</div>' +
-        '<div style="font-size:13px;color:#999;margin-bottom:20px">���填写信息后浏览商品</div>' +
+        '<div style="font-size:13px;color:#999;margin-bottom:20px">请填写信息后浏览商品</div>' +
         '<input id="vrName" type="text" placeholder="请输入您的姓名" style="width:100%;padding:12px 14px;border:1px solid #e0e0e0;border-radius:10px;font-size:15px;margin-bottom:12px;box-sizing:border-box;outline:none">' +
         '<input id="vrPhone" type="tel" placeholder="请输入手机号" maxlength="11" style="width:100%;padding:12px 14px;border:1px solid #e0e0e0;border-radius:10px;font-size:15px;margin-bottom:20px;box-sizing:border-box;outline:none">' +
         '<button id="vrSubmit" style="width:100%;padding:13px;background:#e4393c;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer">提交并进入</button>' +
