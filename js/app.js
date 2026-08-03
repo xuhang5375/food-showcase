@@ -6,7 +6,7 @@
 var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
 var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
 
-var TABLE_NAME = 'products';
+var TABLE_NAME = window.TABLE_NAME || 'food_showcase_products';
 
 let allProducts = [];
 let categories = [];
@@ -110,7 +110,7 @@ async function loadProducts() {
     let lastError = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            const _prodResp = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE_NAME + '?select=*&order=created_at.asc', {
+            const _prodResp = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE_NAME + '?select=*&is_active=eq.true&order=created_at.asc', {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
             });
             const { data, error } = { data: await _prodResp.json(), error: !_prodResp.ok ? { message: 'HTTP ' + _prodResp.status } : null };
@@ -133,13 +133,13 @@ async function loadProducts() {
             // 收集分类（列名是 tag，不是 category）
             const catSet = new Set();
             allProducts.forEach(p => {
-                const cat = (p.tag || '').trim();
+                const cat = (p.category || '').trim();
                 if (!cat) return;
                 catSet.add(cat);
             });
 
             categories = [{ name: 'all', label: '全部' }];
-            const categoryOrder = ['黑千层', '白千层', '边角料', '毛肚片', '虾滑', '其他', '整肚'];
+            const categoryOrder = ['黑千层', '白千层', '毛肚片', '整肚', '边角料', '虾滑', '火锅食材', '烧烤系列', '其他'];
             const sortedCats = Array.from(catSet).sort((a, b) => {
                 const ia = categoryOrder.indexOf(a);
                 const ib = categoryOrder.indexOf(b);
@@ -183,7 +183,7 @@ function renderProducts() {
     let filtered = allProducts;
     if (currentCategory !== 'all') {
         filtered = filtered.filter(p => {
-            const cat = (p.tag || '').trim();
+            const cat = (p.category || '').trim();
             return cat === currentCategory || cat.startsWith(currentCategory + '/');
         });
     }
@@ -192,7 +192,7 @@ function renderProducts() {
         filtered = filtered.filter(p =>
             (p.name || '').toLowerCase().includes(kw) ||
             (p.description || '').toLowerCase().includes(kw) ||
-            (p.tag || '').toLowerCase().includes(kw)
+            (p.category || '').toLowerCase().includes(kw)
         );
     }
     if (filtered.length === 0) {
@@ -204,13 +204,21 @@ function renderProducts() {
     filtered.forEach(p => {
         let priceText = '-';
         if (p.price) {
-            const priceNum = parseFloat(p.price) || 0;
-            const unit = p.unit || '';
-            priceText = '¥' + priceNum + (unit ? '/' + unit : '');
+            var priceStr = String(p.price);
+            if (priceStr.indexOf('/') >= 0) {
+                // price 已包含单位，如 "26.5/斤"
+                priceText = '¥' + priceStr;
+            } else {
+                var priceNum = parseFloat(priceStr) || 0;
+                var unit = p.unit || '';
+                priceText = '¥' + priceNum + (unit ? '/' + unit : '');
+            }
         }
         let firstImg = '';
         if (Array.isArray(p.images) && p.images.length > 0) {
             firstImg = mediaUrl(p.images[0]);
+        } else if (p.image_url) {
+            firstImg = mediaUrl(p.image_url);
         } else if (p.cover_image) {
             firstImg = mediaUrl(p.cover_image);
         }
@@ -221,16 +229,12 @@ function renderProducts() {
         if (Array.isArray(p.images) && p.images.length > 1) {
             multiBadge = '<div class="multi-badge">' + p.images.length + '图</div>';
         }
-        let videoBadge = '';
-        if (videoEnabled && p.video) {
-            videoBadge = '<div class="video-badge">▶</div>';
-        }
         html += '<div class="product-card" data-id="' + p.id + '">' +
-            '<div class="product-cover">' + coverHtml + multiBadge + videoBadge + '</div>' +
+            '<div class="product-cover">' + coverHtml + multiBadge + '</div>' +
             '<div class="product-info">' +
             '<div class="product-name">' + (p.name || '未命名') + '</div>' +
             '<div class="product-meta">' +
-            '<span class="product-category">' + (p.tag || '未分类') + '</span>' +
+            '<span class="product-category">' + (p.category || '未分类') + '</span>' +
             '</div>' +
             '<div class="product-price">' + priceText + '</div>' +
             (p.specification ? '<div class="product-spec" style="color:#666;font-size:12px;margin-top:2px">' + p.specification + '</div>' : '') +
@@ -277,10 +281,15 @@ function showProductDetail(product) {
     var priceText = '-';
     if (product.price != null) {
         var pStr = String(product.price);
-        var pp = pStr.split('/');
-        if (pp[0]) {
-            var unit = product.unit || (pp[1] || '');
-            priceText = '¥' + pp[0] + (unit ? '/' + unit : '');
+        if (pStr.indexOf('/') >= 0) {
+            // price 已包含单位，如 "26.5/斤"
+            priceText = '¥' + pStr;
+        } else {
+            var pp = pStr.split('/');
+            if (pp[0]) {
+                var unit = product.unit || (pp[1] || '');
+                priceText = '¥' + pp[0] + (unit ? '/' + unit : '');
+            }
         }
     }
 
@@ -294,7 +303,7 @@ function showProductDetail(product) {
         images.push(product.cover_image);
     }
 
-    var hasVideo = videoEnabled && !!product.video;
+    var hasVideo = false; // 不显示视频缩略图
     var collected = isFavorited(product.id);
     var showBottomBar = callEnabled && contactPhone;
 
@@ -322,17 +331,8 @@ function showProductDetail(product) {
         }
     }
 
-    // 视频区域 — 点击播放卡片
+    // 视频区域 — 不生成缩略图，不显示
     var videoHtml = '';
-    if (hasVideo) {
-        videoHtml = '<div class="video-play-card" id="videoPlayCard" onclick="playDetailVideo(\'' + mediaUrl(product.video).replace(/'/g, "\\'") + '\')">' +
-            '<div class="video-play-icon">▶</div>' +
-            '<div class="video-play-label">产品实拍视频</div>' +
-            '</div>' +
-            '<div class="video-wrap" id="detailVideoWrap" style="display:none;margin:0 0 12px 0">' +
-            '<video id="detailVideo" src="" controls playsinline preload="none" style="width:100%;max-height:300px;border-radius:12px;background:#000"></video>' +
-            '</div>';
-    }
 
     // 底部操作栏
     var bottomBarHtml = '';
@@ -352,7 +352,7 @@ function showProductDetail(product) {
     var infoHtml = '<div class="detail-info-card">' +
         '<div class="detail-price">' + priceText + '</div>' +
         '<div class="detail-meta-row">' +
-        '<span class="detail-meta-tag">' + (product.tag || '未分类') + '</span>' +
+        '<span class="detail-meta-tag">' + (product.category || '未分类') + '</span>' +
         (product.code ? '<span class="detail-meta-code">编码: ' + product.code + '</span>' : '') +
         '</div>' +
         (product.specification ? '<div class="detail-spec-row"><span class="detail-label">规格</span><span class="detail-value">' + product.specification + '</span></div>' : '') +

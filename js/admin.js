@@ -30,7 +30,7 @@ var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
 var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
 
 var ADMIN_PASSWORD = '920615';
-var TABLE_NAME = 'products';
+var TABLE_NAME = window.TABLE_NAME || 'food_showcase_products';
 var BUCKET_NAME = 'product-media';
 
 var COS_SECRET_ID = window.COS_SECRET_ID || '';
@@ -306,15 +306,22 @@ async function loadProducts() {
 
         data.forEach(function(p) {
 
-            // 数据库无 is_active 列，默认全部显示
-            var isActive = true;
+            // 使用 is_active 列
+            var isActive = p.is_active !== false;
 
-            // price 是数字，unit 是单独列
+            // 价格显示
             var priceText = '-';
-            if (p.price) { priceText = '¥' + p.price + (p.unit ? '/' + p.unit : ''); }
+            if (p.price) { 
+                var pStr = String(p.price);
+                if (pStr.indexOf('/') >= 0) {
+                    priceText = '¥' + pStr;
+                } else {
+                    priceText = '¥' + pStr + (p.unit ? '/' + p.unit : ''); 
+                }
+            }
 
-            // 图片：优先用 images[0]，其次 cover_image
-            var firstImg = (Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : (p.cover_image || '');
+            // 图片：优先用 images[0]，其次 image_url，最后 cover_image
+            var firstImg = (Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : (p.image_url || p.cover_image || '');
 
             var coverImg = firstImg ? '<img src="' + firstImg + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px" onerror="this.style.display=\'none\'">' : '<div style="width:60px;height:60px;background:#eee;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:24px">📦</div>';
 
@@ -323,7 +330,7 @@ async function loadProducts() {
             var isSelected = batchMode && selectedIds.indexOf(p.id) > -1;
             var itemStyle = 'display:flex;align-items:center;padding:12px;border-bottom:1px solid #eee;gap:12px';
             if (batchMode) itemStyle += ';cursor:pointer';
-            html += '<div class="product-item' + (isSelected ? ' batch-selected' : '') + '" data-id="' + p.id + '" data-name="' + (p.name||'').toLowerCase() + '" data-category="' + (p.tag||'').toLowerCase() + '" data-active="' + isActive + '" id="productItem_' + p.id + '" style="' + itemStyle + '"' + (batchMode ? ' onclick="toggleSelect(\'' + p.id + '\')"' : '') + '>' +
+            html += '<div class="product-item' + (isSelected ? ' batch-selected' : '') + '" data-id="' + p.id + '" data-name="' + (p.name||'').toLowerCase() + '" data-category="' + (p.category||'').toLowerCase() + '" data-active="' + isActive + '" id="productItem_' + p.id + '" style="' + itemStyle + '"' + (batchMode ? ' onclick="toggleSelect(\'' + p.id + '\')"' : '') + '>' +
 
                 (batchMode ? '<input type="checkbox" id="batchCb_' + p.id + '" style="width:18px;height:18px;flex-shrink:0;accent-color:#ff9800;pointer-events:none"' + (isSelected ? ' checked' : '') + '>' : '') +
 
@@ -333,7 +340,7 @@ async function loadProducts() {
 
                 '<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (p.name||'未命名') + ' ' + badge + '</div>' +
 
-                '<div style="color:#888;font-size:13px">' + (p.tag||'未分类') + ' | ' + priceText + '</div></div>' +
+                '<div style="color:#888;font-size:13px">' + (p.category||'未分类') + ' | ' + priceText + '</div></div>' +
 
                 (batchMode ? '' : '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
 
@@ -497,8 +504,12 @@ async function doBatchApply() {
     }
     var data = {};
     var actions = [];
-    if (category) { data.tag = category; actions.push('分类 → ' + category); }
-    if (price) { data.price = parseFloat(price); actions.push('价格 → ¥' + price); }
+    if (category) { data.category = category; actions.push('分类 → ' + category); }
+    if (price) { 
+        if (unit) { data.price = price + '/' + unit; }
+        else { data.price = price; }
+        actions.push('价格 → ¥' + price); 
+    }
     if (unit) { data.unit = unit; actions.push('单位 → ' + unit); }
     if (!confirm('将修改 ' + selectedIds.length + ' 个商品：\n' + actions.join('，') + '\n\n确定执行？')) return;
 
@@ -545,6 +556,11 @@ function showAddForm() {
     document.getElementById('productPriceNum').value = '';
 
     document.getElementById('productPriceUnit').value = '箱';
+
+    var specEl = document.getElementById('productSpec');
+    if (specEl) specEl.value = '';
+    var codeEl = document.getElementById('productCode');
+    if (codeEl) codeEl.value = '';
 
             document.getElementById('imagePreview').innerHTML = '';
 
@@ -910,7 +926,11 @@ async function saveProduct() {
 
     var unit = document.getElementById('productPriceUnit').value || '箱';
 
-    var priceVal = priceNum ? parseFloat(priceNum) : null;
+    var spec = (document.getElementById('productSpec') ? document.getElementById('productSpec').value : '').trim();
+    var code = (document.getElementById('productCode') ? document.getElementById('productCode').value : '').trim();
+
+    // food_showcase_products 价格存为 "26.5/斤" 格式
+    var priceVal = priceNum ? (priceNum + '/' + unit) : null;
 
     var btn = document.querySelector('.btn-save');
 
@@ -928,8 +948,9 @@ async function saveProduct() {
 
         if (newVideoFile) { try { var uploadedVideoUrl = await uploadVideoToSupabase(newVideoFile); if (uploadedVideoUrl) videoUrl = uploadedVideoUrl; } catch(e) { console.error('视频上传失败:', e); showToast('视频上传失败'); } }
 
-        var body = { name: name, description: desc, tag: tag, price: priceVal,
-            unit: unit || null, images: imageUrls.length > 0 ? imageUrls : null, image_url: imageUrls.length > 0 ? imageUrls[0] : null, video: videoUrl };
+        var body = { name: name, description: desc, category: tag, price: priceVal,
+            unit: unit || null, specification: spec || null, code: code || null,
+            images: imageUrls.length > 0 ? imageUrls : null, image_url: imageUrls.length > 0 ? imageUrls[0] : null, video: videoUrl };
 
         console.log('保存数据:', body);
 
@@ -992,14 +1013,29 @@ async function editProduct(id) {
 
         document.getElementById('productDesc').value = data.description || '';
 
-        document.getElementById('productCategory').value = data.tag || '黑千层';
+        document.getElementById('productCategory').value = data.category || '黑千层';
 
-                        if (data.price) {
-            document.getElementById('productPriceNum').value = data.price || '';
-            document.getElementById('productPriceUnit').value = data.unit || '箱';
+        // 解析价格 "26.5/斤" → priceNum=26.5, unit=斤
+        if (data.price) {
+            var pStr = String(data.price);
+            var slashIdx = pStr.indexOf('/');
+            if (slashIdx >= 0) {
+                document.getElementById('productPriceNum').value = pStr.substring(0, slashIdx);
+                var priceUnit = pStr.substring(slashIdx + 1);
+                document.getElementById('productPriceUnit').value = priceUnit || (data.unit || '箱');
+            } else {
+                document.getElementById('productPriceNum').value = pStr;
+                document.getElementById('productPriceUnit').value = data.unit || '箱';
+            }
         }
 
         else { document.getElementById('productPriceNum').value = ''; document.getElementById('productPriceUnit').value = '箱'; }
+
+        // 规格和编码
+        var specEl = document.getElementById('productSpec');
+        if (specEl) specEl.value = data.specification || '';
+        var codeEl = document.getElementById('productCode');
+        if (codeEl) codeEl.value = data.code || '';
 
         existingImageUrls = []; newImageFiles = [];
 
