@@ -366,7 +366,6 @@ function showProductDetail(product) {
         (product.code ? '<span class="detail-meta-code">编码: ' + product.code + '</span>' : '') +
         '</div>' +
         (product.specification ? '<div class="detail-spec-row"><span class="detail-label">规格</span><span class="detail-value">' + product.specification + '</span></div>' : '') +
-        (product.unit && !priceText.includes('/' + product.unit) ? '<div class="detail-spec-row"><span class="detail-label">单位</span><span class="detail-value">' + product.unit + '</span></div>' : '') +
         '</div>';
 
     if (product.description) {
