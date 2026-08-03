@@ -303,7 +303,7 @@ function showProductDetail(product) {
         images.push(product.cover_image);
     }
 
-    var hasVideo = false; // 不显示视频缩略图
+    var hasVideo = videoEnabled && !!product.video;
     var collected = isFavorited(product.id);
     var showBottomBar = callEnabled && contactPhone;
 
@@ -331,8 +331,18 @@ function showProductDetail(product) {
         }
     }
 
-    // 视频区域 — 不生成缩略图，不显示
+    // 视频区域 — 点击播放，不生成缩略图
     var videoHtml = '';
+    if (hasVideo) {
+        videoHtml = '<div style="margin-bottom:12px">' +
+            '<button id="videoPlayCard" onclick="playDetailVideo(\'' + mediaUrl(product.video).replace(/'/g, "\\'") + '\')" style="width:100%;border:none;background:#1a1a1a;color:#fff;padding:14px 20px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;transition:background 0.2s">' +
+            '<span style="font-size:20px">▶</span><span>点击播放产品视频</span>' +
+            '</button>' +
+            '<div id="detailVideoWrap" style="display:none;margin-top:8px">' +
+            '<video id="detailVideo" src="" controls playsinline preload="none" style="width:100%;max-height:300px;border-radius:12px;background:#000"></video>' +
+            '</div>' +
+            '</div>';
+    }
 
     // 底部操作栏
     var bottomBarHtml = '';
