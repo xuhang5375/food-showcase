@@ -1,53 +1,93 @@
-﻿// ========================================
+// ========================================
 // 食材采购 - 前台展示页逻辑
 // ========================================
 
 // Supabase 配置（硬编码，不依赖 CDN）
 var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
 var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
-var TABLE_NAME = 'food_showcase_products';
+
+var TABLE_NAME = 'products';
 
 let allProducts = [];
 let categories = [];
 let currentCategory = 'all';
 let searchKeyword = '';
 let videoEnabled = true;
-let visitorEnabled = false; // 访客弹窗开关，从 app_config 读取 // 默认显示视频，从 app_config 读取后覆盖
+let callEnabled = false;
+let contactPhone = '';
+let visitorEnabled = true;
+let visitorRegistered = false;
+
+// ---- 北京时间转换 ----
+function formatBeijingTime(isoStr) {
+    if (!isoStr) return '-';
+    var d = new Date(isoStr);
+    if (isNaN(d.getTime())) {
+        // 兼容 "2026-08-03 10:06:00" 格式
+        var m = isoStr.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+        return m ? m[1] + ' ' + m[2] : isoStr;
+    }
+    // UTC → UTC+8
+    var bj = new Date(d.getTime() + 8 * 60 * 60 * 1000);
+    var y = bj.getUTCFullYear();
+    var mo = ('0' + (bj.getUTCMonth() + 1)).slice(-2);
+    var day = ('0' + bj.getUTCDate()).slice(-2);
+    var h = ('0' + bj.getUTCHours()).slice(-2);
+    var mi = ('0' + bj.getUTCMinutes()).slice(-2);
+    return y + '-' + mo + '-' + day + ' ' + h + ':' + mi;
+}
+
+// ---- 收藏管理 ----
+function getFavorites() {
+    try {
+        var raw = localStorage.getItem('fav_products');
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+}
+function isFavorited(id) { return getFavorites().indexOf(id) !== -1; }
+function toggleFavorite(id) {
+    var favs = getFavorites();
+    var idx = favs.indexOf(id);
+    if (idx === -1) { favs.push(id); return true; }
+    else { favs.splice(idx, 1); return false; }
+}
 
 // ---- 初始化 ----
 (async function init() {
     try {
-        // 读取视频开关配置
+        // 批量读取配置
         try {
-            const _cfgResp = await fetch(SUPABASE_URL + '/rest/v1/app_config?select=value&key=eq.video_enabled&limit=1', {
+            var _cfgResp = await fetch(SUPABASE_URL + '/rest/v1/app_config?select=key,value&key=in.(video_enabled,call_button_enabled,contact_phone,visitor_enabled)', {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
             });
-            const _cfgData = await _cfgResp.json();
-            const data = Array.isArray(_cfgData) ? _cfgData[0] : _cfgData;
-            if (!data) {
-                console.warn('读取 video_enabled 配置失败，使用默认值');
-            } else {
-                videoEnabled = true;
+            var _cfgData = await _cfgResp.json();
+            if (Array.isArray(_cfgData)) {
+                _cfgData.forEach(function(c) {
+                    if (c.key === 'video_enabled') videoEnabled = c.value !== 'false';
+                    if (c.key === 'call_button_enabled') callEnabled = c.value === 'true';
+                    if (c.key === 'contact_phone') contactPhone = c.value || '';
+                    if (c.key === 'visitor_enabled') visitorEnabled = c.value !== 'false';
+                });
             }
         } catch (e) {
-            console.warn('读取 video_enabled ��置失败，使用默认值:', e);
+            console.warn('读取配置失败，使用默认值:', e);
         }
+
+        // 检查是否已登记
+        visitorRegistered = localStorage.getItem('visitorRegistered') === 'true';
+
         await loadProducts();
         buildCategoryNav();
         renderProducts();
         bindEvents();
 
-
-        // 访客弹窗
-
-        if (visitorEnabled && !localStorage.getItem('visitor_submitted')) {
-
-          showVisitorPopup();
-
+        // 访客登记弹窗
+        if (visitorEnabled && !visitorRegistered) {
+            showVisitorRegister();
         }
     } catch (err) {
         console.error('初始化失败:', err);
-        const el = document.getElementById('products');
+        var el = document.getElementById('products');
         if (el) el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>加载失败，<a href="javascript:location.reload()">点击刷新</a></p></div>';
     }
 })();
@@ -56,19 +96,12 @@ var COS_CDN_URL = window.COS_CDN_URL || 'https://799195375-1306702381.cos.ap-gua
 
 function mediaUrl(url) {
     if (!url) return url;
-    // 已是 http(s) URL
-    if (url.indexOf('http://') === 0 || url.indexOf('https://') === 0) {
-        // COS 图片 URL → 迁移到 Supabase Storage
-        if (url.indexOf('799195375-1306702381') !== -1 && url.indexOf('.mp4') === -1) {
-            var filename = url.split('/').pop();
-            return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/xiaochengxu/images/' + filename;
-        }
-        return url;
+    // COS 图片 URL → 迁移到 Supabase Storage
+    if (url.indexOf('799195375-1306702381') !== -1 && url.indexOf('.mp4') === -1) {
+        var filename = url.split('/').pop();
+        return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/product-media/images/' + filename;
     }
-    // 相对路径（如 "img/product_6_1.jpg" 或 "uploads/xxx.png"）
-    if (url.indexOf('/') !== 0) {
-        return 'https://infsqrfqksvqzlapvott.supabase.co/storage/v1/object/public/xiaochengxu/' + url;
-    }
+    // COS 视频 URL（新增视频走 COS）或其他 URL 直接返回
     return url;
 }
 
@@ -77,29 +110,30 @@ async function loadProducts() {
     let lastError = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            const _resp = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE_NAME + '?select=*&order=created_at.asc', {
+            const _prodResp = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE_NAME + '?select=*&order=created_at.asc', {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
             });
-            if (!_resp.ok) throw new Error('HTTP ' + _resp.status);
-            const data = await _resp.json();
+            const { data, error } = { data: await _prodResp.json(), error: !_prodResp.ok ? { message: 'HTTP ' + _prodResp.status } : null };
 
-            // products 表结构: id, name, price(数字), tag, unit, images[], cover_image, video, created_at
-            // 过滤：保留有名称的商品
-            allProducts = (data || []).filter(p => p.name);
+            if (error) throw error;
+
+            allProducts = data || [];
             if (allProducts.length === 0) {
                 document.getElementById('products').innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>暂无商品</p></div>';
                 return;
             }
 
+            // 按价格排序（price 是数字）
             allProducts.sort((a, b) => {
-                const priceA = parseFloat(a.price) || 0;
-                const priceB = parseFloat(b.price) || 0;
+                const priceA = a.price ? parseFloat(a.price) || 0 : 0;
+                const priceB = b.price ? parseFloat(b.price) || 0 : 0;
                 return priceA - priceB;
             });
 
+            // 收集分类（列名是 tag，不是 category）
             const catSet = new Set();
             allProducts.forEach(p => {
-                const cat = (p.category || '').trim();
+                const cat = (p.tag || '').trim();
                 if (!cat) return;
                 catSet.add(cat);
             });
@@ -149,7 +183,7 @@ function renderProducts() {
     let filtered = allProducts;
     if (currentCategory !== 'all') {
         filtered = filtered.filter(p => {
-            const cat = (p.category || '').trim();
+            const cat = (p.tag || '').trim();
             return cat === currentCategory || cat.startsWith(currentCategory + '/');
         });
     }
@@ -158,8 +192,7 @@ function renderProducts() {
         filtered = filtered.filter(p =>
             (p.name || '').toLowerCase().includes(kw) ||
             (p.description || '').toLowerCase().includes(kw) ||
-            (p.category || '').toLowerCase().includes(kw) ||
-            (p.unit || '').toLowerCase().includes(kw)
+            (p.tag || '').toLowerCase().includes(kw)
         );
     }
     if (filtered.length === 0) {
@@ -170,9 +203,10 @@ function renderProducts() {
     let html = '<div class="product-grid">';
     filtered.forEach(p => {
         let priceText = '-';
-        if (p.price != null) {
-            const unit = p.unit ? '/' + p.unit : '';
-            priceText = '¥' + p.price + unit;
+        if (p.price) {
+            const priceNum = parseFloat(p.price) || 0;
+            const unit = p.unit || '';
+            priceText = '¥' + priceNum + (unit ? '/' + unit : '');
         }
         let firstImg = '';
         if (Array.isArray(p.images) && p.images.length > 0) {
@@ -196,10 +230,10 @@ function renderProducts() {
             '<div class="product-info">' +
             '<div class="product-name">' + (p.name || '未命名') + '</div>' +
             '<div class="product-meta">' +
-            '<span class="product-category">' + (p.category || '未分类') + '</span>' +
+            '<span class="product-category">' + (p.tag || '未分类') + '</span>' +
             '</div>' +
             '<div class="product-price">' + priceText + '</div>' +
-            (p.unit ? '<div class="product-spec" style="color:#666;font-size:12px;margin-top:2px">' + p.unit + '</div>' : '') +
+            (p.specification ? '<div class="product-spec" style="color:#666;font-size:12px;margin-top:2px">' + p.specification + '</div>' : '') +
             '</div>' +
             '</div>';
     });
@@ -236,93 +270,184 @@ function bindEvents() {
 }
 
 function showProductDetail(product) {
-    const existing = document.getElementById('detailModal');
+    var existing = document.getElementById('detailModal');
     if (existing) existing.remove();
 
-    let priceText = '-';
+    // 价格显示
+    var priceText = '-';
     if (product.price != null) {
-        const unit = product.unit ? '/' + product.unit : '';
-        priceText = '¥' + product.price + unit;
+        var pStr = String(product.price);
+        var pp = pStr.split('/');
+        if (pp[0]) {
+            var unit = product.unit || (pp[1] || '');
+            priceText = '¥' + pp[0] + (unit ? '/' + unit : '');
+        }
     }
 
-    let allMedia = [];
+    // 收集所有图片
+    var images = [];
     if (Array.isArray(product.images) && product.images.length > 0) {
-        product.images.forEach(url => { allMedia.push({ type: 'image', url: url }); });
+        product.images.forEach(function(url) { images.push(url); });
+    } else if (product.image_url) {
+        images.push(product.image_url);
     } else if (product.cover_image) {
-        allMedia.push({ type: 'image', url: product.cover_image });
-    }
-    if (videoEnabled && product.video) {
-        allMedia.push({ type: 'video', url: product.video });
+        images.push(product.cover_image);
     }
 
-    let mediaHtml = '';
-    if (allMedia.length > 0) {
-        if (allMedia.length > 1) {
-            let slidesHtml = '';
-            let dotsHtml = '';
-            allMedia.forEach((media, i) => {
-                let slideContent = '';
-                if (media.type === 'video') {
-                    slideContent = '<video src="' + mediaUrl(media.url) + '" controls playsinline preload="none" muted style="width:100%;height:200px;object-fit:contain;background:#000;border-radius:8px"></video>';
-                } else {
-                    slideContent = '<img src="' + mediaUrl(media.url) + '" style="width:100%;height:200px;object-fit:contain;background:#f5f5f5;border-radius:8px">';
-                }
-                slidesHtml += '<div class="carousel-slide" data-index="' + i + '" style="display:' + (i === 0 ? 'block' : 'none') + '">' + slideContent + '</div>';
-                dotsHtml += '<span class="carousel-dot" data-index="' + i + '" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + (i === 0 ? '#f60' : '#ccc') + ';margin:0 4px;cursor:pointer"></span>';
+    var hasVideo = videoEnabled && !!product.video;
+    var collected = isFavorited(product.id);
+    var showBottomBar = callEnabled && contactPhone;
+
+    // 图片轮播（仅图片，不含视频）
+    var mediaHtml = '';
+    if (images.length > 0) {
+        if (images.length > 1) {
+            var slidesHtml = '';
+            var dotsHtml = '';
+            images.forEach(function(url, i) {
+                slidesHtml += '<div class="carousel-slide" data-index="' + i + '" style="display:' + (i === 0 ? 'block' : 'none') + '">' +
+                    '<img src="' + mediaUrl(url) + '" style="width:100%;height:280px;object-fit:contain;background:#f8f8f8;border-radius:12px">' +
+                    '</div>';
+                dotsHtml += '<span class="carousel-dot" data-index="' + i + '" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (i === 0 ? '#e4393c' : '#d9d9d9') + ';margin:0 4px;cursor:pointer;transition:background 0.2s"></span>';
             });
-            mediaHtml = '<div class="carousel-container" style="position:relative;margin-bottom:12px" id="carouselContainer">' +
+            mediaHtml = '<div class="carousel-container" id="carouselContainer">' +
                 slidesHtml +
-                '<button class="carousel-prev" onclick="carouselGo(-1)" style="position:absolute;left:4px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;background:rgba(0,0,0,0.6);color:#fff;font-size:20px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.85;box-shadow:0 2px 6px rgba(0,0,0,0.3);font-weight:bold">‹</button>' +
-                '<button class="carousel-next" onclick="carouselGo(1)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;background:rgba(0,0,0,0.6);color:#fff;font-size:20px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.85;box-shadow:0 2px 6px rgba(0,0,0,0.3);font-weight:bold">›</button>' +
-                '<div class="carousel-counter" style="position:absolute;right:8px;top:8px;background:rgba(0,0,0,0.55);color:#fff;font-size:12px;padding:2px 7px;border-radius:10px;z-index:2">1/' + allMedia.length + '</div>' +
-                '<div class="carousel-dots" style="text-align:center;margin-top:8px">' + dotsHtml + '</div>' +
-                '<div style="text-align:center;color:#999;font-size:12px;margin-top:4px">← 左右滑动或点击箭头切换 →</div>' +
+                '<button class="carousel-prev" onclick="carouselGo(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:35px;height:35px;border:none;background:rgba(0,0,0,0.35);color:#fff;font-size:20px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.7;line-height:35px;text-align:center">‹</button>' +
+                '<button class="carousel-next" onclick="carouselGo(1)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:35px;height:35px;border:none;background:rgba(0,0,0,0.35);color:#fff;font-size:20px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.7;line-height:35px;text-align:center">›</button>' +
+                '<div class="carousel-counter" style="position:absolute;right:10px;top:10px;background:rgba(0,0,0,0.5);color:#fff;font-size:12px;padding:2px 8px;border-radius:10px;z-index:2">1/' + images.length + '</div>' +
+                '<div class="carousel-dots" style="text-align:center;padding:8px 0">' + dotsHtml + '</div>' +
                 '</div>';
         } else {
-            if (allMedia[0].type === 'video') {
-                mediaHtml = '<div style="margin-bottom:12px"><video src="' + mediaUrl(allMedia[0].url) + '" controls playsinline preload="none" muted style="width:100%;max-height:300px;border-radius:8px;background:#000"></video></div>';
-            } else {
-                mediaHtml = '<div style="margin-bottom:12px"><img src="' + mediaUrl(allMedia[0].url) + '" style="width:100%;height:auto;border-radius:8px"></div>';
-            }
+            mediaHtml = '<div style="margin-bottom:12px"><img src="' + mediaUrl(images[0]) + '" style="width:100%;height:auto;max-height:300px;object-fit:contain;border-radius:12px;background:#f8f8f8"></div>';
         }
     }
 
-    const modal = document.createElement('div');
-    modal.id = 'detailModal';
-    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:1000';
-    modal.innerHTML = '<div style="background:#fff;border-radius:12px;max-width:400px;width:90%;max-height:80vh;overflow-y:auto;padding:20px">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
-        '<h3 style="margin:0;font-size:18px">' + (product.name || '商品详情') + '</h3>' +
-        '<button onclick="document.getElementById(\'detailModal\').remove()" style="border:none;background:#eee;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>' +
-        '</div>' + mediaHtml +
-        '<div style="color:#888;font-size:13px;margin-bottom:6px">分类: ' + (product.category || '未分类') + '</div>' +
-        '<div style="color:#f60;font-size:20px;font-weight:600;margin-bottom:8px">' + priceText + '</div>' +
-        (product.unit ? '<div style="color:#666;font-size:13px;margin-top:4px">规格: ' + product.unit + '</div>' : '') +
-        (product.description ? '<div style="color:#666;font-size:14px;margin-top:12px;line-height:1.5">' + product.description + '</div>' : '') +
-        (product.remark ? '<div style="color:#e6a23c;font-size:13px;margin-top:8px;line-height:1.5">📌 ' + product.remark + '</div>' : '') +
+    // 视频区域 — 点击播放卡片
+    var videoHtml = '';
+    if (hasVideo) {
+        videoHtml = '<div class="video-play-card" id="videoPlayCard" onclick="playDetailVideo(\'' + mediaUrl(product.video).replace(/'/g, "\\'") + '\')">' +
+            '<div class="video-play-icon">▶</div>' +
+            '<div class="video-play-label">产品实拍视频</div>' +
+            '</div>' +
+            '<div class="video-wrap" id="detailVideoWrap" style="display:none;margin:0 0 12px 0">' +
+            '<video id="detailVideo" src="" controls playsinline preload="none" style="width:100%;max-height:300px;border-radius:12px;background:#000"></video>' +
+            '</div>';
+    }
+
+    // 底部操作栏
+    var bottomBarHtml = '';
+    if (showBottomBar) {
+        bottomBarHtml = '<div class="detail-bottom-bar">' +
+            '<div class="detail-bottom-left">' +
+            '<div class="detail-collect-btn' + (collected ? ' collected' : '') + '" id="detailCollectBtn" onclick="toggleDetailCollect(\'' + product.id + '\')">' +
+            '<span class="collect-icon">' + (collected ? '★' : '☆') + '</span>' +
+            '<span class="collect-text">' + (collected ? '已收藏' : '收藏') + '</span>' +
+            '</div>' +
+            '</div>' +
+            '<div class="detail-call-btn" onclick="callMerchant(\'' + contactPhone + '\')">📞 一键拨号咨询</div>' +
+            '</div>';
+    }
+
+    // 组装弹窗
+    var infoHtml = '<div class="detail-info-card">' +
+        '<div class="detail-price">' + priceText + '</div>' +
+        '<div class="detail-meta-row">' +
+        '<span class="detail-meta-tag">' + (product.tag || '未分类') + '</span>' +
+        (product.code ? '<span class="detail-meta-code">编码: ' + product.code + '</span>' : '') +
+        '</div>' +
+        (product.specification ? '<div class="detail-spec-row"><span class="detail-label">规格</span><span class="detail-value">' + product.specification + '</span></div>' : '') +
+        (product.unit && !priceText.includes('/' + product.unit) ? '<div class="detail-spec-row"><span class="detail-label">单位</span><span class="detail-value">' + product.unit + '</span></div>' : '') +
         '</div>';
 
-    if (allMedia.length > 1) {
-        modal.querySelectorAll('.carousel-dot').forEach(dot => {
-            dot.addEventListener('click', function() { carouselShow(parseInt(this.dataset.index)); });
-        });
-        _carouselIndex = 0;
-        carouselShow(0);
-        const carouselEl = modal.querySelector('#carouselContainer');
-        if (carouselEl) {
-            let startX = 0;
-            carouselEl.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
-            carouselEl.addEventListener('touchend', (e) => {
-                const diff = startX - e.changedTouches[0].clientX;
-                if (Math.abs(diff) > 40) carouselGo(diff > 0 ? 1 : -1);
-            }, { passive: true });
-        }
+    if (product.description) {
+        infoHtml += '<div class="detail-desc-card">' +
+            '<div class="detail-desc-title">商品描述</div>' +
+            '<div class="detail-desc-text">' + product.description + '</div>' +
+            '</div>';
     }
 
+    if (product.remark) {
+        infoHtml += '<div class="detail-remark-card">📌 ' + product.remark + '</div>';
+    }
+
+    var modal = document.createElement('div');
+    modal.id = 'detailModal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center;z-index:1000';
+    modal.innerHTML = '<div style="background:#fff;width:100%;max-width:500px;max-height:85vh;border-radius:16px 16px 0 0;overflow-y:auto;position:relative;animation:slideUp 0.25s ease-out;padding-bottom:' + (showBottomBar ? '70px' : '20px') + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 16px 8px">' +
+        '<h3 style="margin:0;font-size:18px;font-weight:600;color:#1a1a1a">' + (product.name || '商品详情') + '</h3>' +
+        '<button onclick="document.getElementById(\'detailModal\').remove()" style="border:none;background:#f0f0f0;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:16px;color:#666;line-height:30px;text-align:center">✕</button>' +
+        '</div>' +
+        '<div style="padding:0 16px">' + mediaHtml + videoHtml + infoHtml + '</div>' +
+        '<div style="padding:0 16px;text-align:center;color:#ccc;font-size:12px;padding-bottom:8px">—— 向上滑动查看更多 ——</div>' +
+        '</div>' +
+        (showBottomBar ? bottomBarHtml : '');
+
+    // 轮播图初始化
+    if (images.length > 1) {
+        setTimeout(function() {
+            var dots = modal.querySelectorAll('.carousel-dot');
+            dots.forEach(function(dot) {
+                dot.addEventListener('click', function() { carouselShow(parseInt(this.dataset.index)); });
+            });
+            _carouselIndex = 0;
+            carouselShow(0);
+            var carouselEl = modal.querySelector('#carouselContainer');
+            if (carouselEl) {
+                var startX = 0;
+                carouselEl.addEventListener('touchstart', function(e) { startX = e.touches[0].clientX; }, { passive: true });
+                carouselEl.addEventListener('touchend', function(e) {
+                    var diff = startX - e.changedTouches[0].clientX;
+                    if (Math.abs(diff) > 40) carouselGo(diff > 0 ? 1 : -1);
+                }, { passive: true });
+            }
+        }, 100);
+    }
+
+    // 点击遮罩关闭
     modal.addEventListener('click', function(e) {
         if (e.target === modal) modal.remove();
     });
+
     document.body.appendChild(modal);
+}
+
+// ---- 视频点击播放 ----
+function playDetailVideo(videoUrl) {
+    var card = document.getElementById('videoPlayCard');
+    var wrap = document.getElementById('detailVideoWrap');
+    var video = document.getElementById('detailVideo');
+    if (card) card.style.display = 'none';
+    if (wrap) wrap.style.display = 'block';
+    if (video) {
+        video.src = videoUrl;
+        video.play();
+    }
+}
+
+// ---- 收藏切换 ----
+function toggleDetailCollect(id) {
+    var added = toggleFavorite(id);
+    var favs = getFavorites();
+    localStorage.setItem('fav_products', JSON.stringify(favs));
+    var btn = document.getElementById('detailCollectBtn');
+    if (btn) {
+        if (added) {
+            btn.classList.add('collected');
+            btn.querySelector('.collect-icon').textContent = '★';
+            btn.querySelector('.collect-text').textContent = '已收藏';
+        } else {
+            btn.classList.remove('collected');
+            btn.querySelector('.collect-icon').textContent = '☆';
+            btn.querySelector('.collect-text').textContent = '收藏';
+        }
+    }
+}
+
+// ---- 一键拨号 ----
+function callMerchant(phone) {
+    if (!phone) return;
+    window.location.href = 'tel:' + phone;
 }
 
 let _carouselIndex = 0;
@@ -334,7 +459,7 @@ function carouselShow(idx) {
     if (!slides.length) return;
     _carouselIndex = idx;
     slides.forEach((s, i) => s.style.display = i === idx ? 'block' : 'none');
-    dots.forEach((d, i) => { d.style.background = i === idx ? '#f60' : '#ccc'; });
+    dots.forEach((d, i) => { d.style.background = i === idx ? '#e4393c' : '#d9d9d9'; });
     if (counter) counter.textContent = (idx + 1) + '/' + slides.length;
     const prevBtn = document.querySelector('#detailModal .carousel-prev');
     const nextBtn = document.querySelector('#detailModal .carousel-next');
@@ -350,76 +475,60 @@ function carouselGo(dir) {
     carouselShow(idx);
 }
 
+// ---- 访客登记弹窗 ----
+function showVisitorRegister() {
+    var existing = document.getElementById('visitorRegisterModal');
+    if (existing) return;
 
-  // ---- 访客弹窗 ----
-  function showVisitorPopup() {
-    // 创建遮罩
-    var overlay = document.createElement('div');
-    overlay.id = 'visitorPopup';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
-    
-    var box = document.createElement('div');
-    box.style.cssText = 'background:#fff;border-radius:12px;padding:28px 24px;width:90%;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.18);position:relative;';
-    
-    box.innerHTML = `
-      <h3 style="margin:0 0 18px 0;font-size:18px;color:#333;text-align:center;">访客登记</h3>
-      <div style="margin-bottom:14px;">
-        <input id="visitorName" type="text" placeholder="您的姓名（选填）" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:15px;box-sizing:border-box;">
-      </div>
-      <div style="margin-bottom:18px;">
-        <input id="visitorPhone" type="tel" placeholder="联系电话（必填）" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:15px;box-sizing:border-box;">
-      </div>
-      <button id="visitorSubmitBtn" onclick="submitVisitor()" style="width:100%;padding:11px 0;background:#4caf50;color:#fff;border:none;border-radius:6px;font-size:16px;cursor:pointer;">提交</button>
-      <button onclick="closeVisitorPopup()" style="width:100%;padding:9px 0;background:transparent;color:#999;border:1px solid #ddd;border-radius:6px;font-size:14px;cursor:pointer;margin-top:10px;">暂不登记</button>
-    `;
-    
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    
-    // 点击遮罩关闭
-    overlay.addEventListener('click', function(e) {
-      if (e.target === overlay) closeVisitorPopup();
+    var modal = document.createElement('div');
+    modal.id = 'visitorRegisterModal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:2000';
+    modal.innerHTML = '<div style="background:#fff;border-radius:16px;width:90%;max-width:360px;padding:28px 24px 24px;text-align:center">' +
+        '<div style="font-size:48px;margin-bottom:12px">📋</div>' +
+        '<div style="font-size:18px;font-weight:600;color:#1a1a1a;margin-bottom:4px">访客登记</div>' +
+        '<div style="font-size:13px;color:#999;margin-bottom:20px">���填写信息后浏览商品</div>' +
+        '<input id="vrName" type="text" placeholder="请输入您的姓名" style="width:100%;padding:12px 14px;border:1px solid #e0e0e0;border-radius:10px;font-size:15px;margin-bottom:12px;box-sizing:border-box;outline:none">' +
+        '<input id="vrPhone" type="tel" placeholder="请输入手机号" maxlength="11" style="width:100%;padding:12px 14px;border:1px solid #e0e0e0;border-radius:10px;font-size:15px;margin-bottom:20px;box-sizing:border-box;outline:none">' +
+        '<button id="vrSubmit" style="width:100%;padding:13px;background:#e4393c;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer">提交并进入</button>' +
+        '</div>';
+
+    document.body.appendChild(modal);
+
+    document.getElementById('vrSubmit').addEventListener('click', async function() {
+        var name = document.getElementById('vrName').value.trim();
+        var phone = document.getElementById('vrPhone').value.trim();
+        if (!name) { alert('请输入姓名'); return; }
+        if (!/^\d{11}$/.test(phone)) { alert('请输入正确的11位手机号'); return; }
+
+        var btn = document.getElementById('vrSubmit');
+        btn.disabled = true;
+        btn.textContent = '提交中...';
+
+        try {
+            await fetch(SUPABASE_URL + '/rest/v1/visitor_logs', {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=minimal'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    phone: phone,
+                    page: 'index',
+                    visit_time: new Date().toISOString()
+                })
+            });
+            localStorage.setItem('visitorRegistered', 'true');
+            visitorRegistered = true;
+            modal.remove();
+        } catch (e) {
+            console.error('登记失败:', e);
+            btn.disabled = false;
+            btn.textContent = '提交并进入';
+            alert('提交失败，请重试');
+        }
     });
-  }
-  
-  function closeVisitorPopup() {
-    var el = document.getElementById('visitorPopup');
-    if (el) el.remove();
-  }
-  
-  async function submitVisitor() {
-    var name = (document.getElementById('visitorName').value || '').trim();
-    var phone = (document.getElementById('visitorPhone').value || '').trim();
-    if (!phone) { alert('请填写联系电话'); return; }
-    var btn = document.getElementById('visitorSubmitBtn');
-    btn.disabled = true;
-    btn.textContent = '提交中...';
-    try {
-      var now = new Date().toISOString();
-      var body = { name: name || '匿名', phone: phone, visit_time: now, page: '前台', openid: 'web' };
-      var resp = await fetch(SUPABASE_URL + '/rest/v1/visitor_logs', {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify(body)
-      });
-      if (!resp.ok) throw new Error('提交失败(' + resp.status + ')');
-      localStorage.setItem('visitor_submitted', 'true');
-      closeVisitorPopup();
-      // 轻提示
-      var t = document.createElement('div');
-      t.textContent = '登记成功，感谢！';
-      t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 24px;border-radius:8px;z-index:10001;font-size:14px;';
-      document.body.appendChild(t);
-      setTimeout(function() { t.remove(); }, 2000);
-    } catch (e) {
-      alert('提交失败: ' + e.message);
-      btn.disabled = false;
-      btn.textContent = '提交';
-    }
-  }
-  
+}
+

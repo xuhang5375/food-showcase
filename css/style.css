@@ -752,3 +752,259 @@ body {
         gap: 10px;
     }
 }
+
+/* ===== 批量编辑 ===== */
+.batch-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+    z-index: 200;
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 12px));
+}
+.batch-bar-inner {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.batch-bar-title {
+    font-size: 13px;
+    color: #666;
+    flex: 1;
+}
+.batch-bar-title b {
+    color: #ff9800;
+    font-size: 16px;
+}
+.batch-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.batch-field {
+    display: flex;
+    align-items: center;
+    background: #f5f5f5;
+    border-radius: 6px;
+    padding: 4px 8px;
+    flex: 1;
+    min-width: 100px;
+}
+.batch-label {
+    font-size: 12px;
+    color: #999;
+    margin-right: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.batch-btn-apply {
+    background: #ff9800;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.batch-btn-apply:active {
+    background: #e68900;
+}
+
+/* 批量模式下商品选中状态 */
+.product-item.batch-selected {
+    background: #fff8e1 !important;
+    border-color: #ff9800;
+}
+.product-item.batch-selected .batch-check {
+    accent-color: #ff9800;
+}
+
+/* ========================================
+   商品详情弹窗 - 卡片式UI
+   ======================================== */
+@keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+/* 信息卡片 */
+.detail-info-card {
+    background: #fff;
+    border: 1px solid #f0f0f0;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+.detail-price {
+    font-size: 24px;
+    font-weight: 700;
+    color: #e4393c;
+    margin-bottom: 10px;
+}
+.detail-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.detail-meta-tag {
+    font-size: 12px;
+    background: #fff0ee;
+    color: #e4393c;
+    padding: 2px 10px;
+    border-radius: 10px;
+}
+.detail-meta-code {
+    font-size: 12px;
+    color: #bbb;
+}
+.detail-spec-row {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 13px;
+}
+.detail-label {
+    color: #999;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+.detail-value {
+    color: #333;
+}
+
+/* 描述卡片 */
+.detail-desc-card {
+    background: #fafafa;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+.detail-desc-title {
+    font-size: 13px;
+    color: #999;
+    margin-bottom: 6px;
+}
+.detail-desc-text {
+    font-size: 14px;
+    color: #333;
+    line-height: 1.6;
+}
+
+/* 备注卡片 */
+.detail-remark-card {
+    background: #fff8e6;
+    color: #b8860b;
+    font-size: 13px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+/* 视频播放卡片 */
+.video-play-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: 2px dashed #e0e0e0;
+    border-radius: 12px;
+    padding: 24px 0;
+    margin: 0 0 12px 0;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+.video-play-card:active {
+    border-color: #e4393c;
+    background: #fff5f5;
+}
+.video-play-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e4393c, #ff6b6b);
+    color: #fff;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 12px rgba(228,57,60,0.3);
+}
+.video-play-label {
+    font-size: 13px;
+    color: #999;
+}
+
+/* 底部操作栏 */
+.detail-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    align-items: center;
+    background: #fff;
+    border-top: 1px solid #f0f0f0;
+    padding: 10px 16px;
+    box-sizing: border-box;
+    z-index: 1001;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+}
+.detail-bottom-left {
+    flex-shrink: 0;
+    margin-right: 10px;
+}
+.detail-collect-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+.detail-collect-btn:active {
+    background: #f5f5f5;
+}
+.detail-collect-btn .collect-icon {
+    font-size: 22px;
+    color: #ccc;
+    transition: color 0.2s;
+}
+.detail-collect-btn.collected .collect-icon {
+    color: #e4393c;
+}
+.detail-collect-btn .collect-text {
+    font-size: 11px;
+    color: #999;
+    margin-top: 2px;
+}
+.detail-collect-btn.collected .collect-text {
+    color: #e4393c;
+}
+.detail-call-btn {
+    flex: 1;
+    background: linear-gradient(135deg, #52c41a, #73d13d);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    padding: 12px 0;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+.detail-call-btn:active {
+    opacity: 0.85;
+}

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 
 <html lang="zh-CN">
 
@@ -48,11 +48,11 @@
 
             <button class="btn-add" onclick="showAddForm()">＋ 添加商品</button>
 
+            <button id="batchToggleBtn" onclick="toggleBatchMode()" style="padding:8px 14px;border:1px solid #ff9800;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-left:8px;color:#ff9800">✎ 批量操作</button>
+
             <button id="videoToggleBtn" onclick="toggleVideo()" style="padding:8px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-left:8px">视频功能: 加载中...</button>
 
             <button id="visitorBtn" onclick="showVisitorLogs()" style="padding:8px 14px;border:1px solid #2196F3;border-radius:6px;background:#2196F3;color:#fff;cursor:pointer;font-size:13px;margin-left:8px">访客登记</button>
-
-            <button id="visitorPopupToggleBtn" onclick="toggleVisitorPopup()" style="padding:8px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-left:8px">访客弹窗: 加载中...</button>
 
         </div>
 
@@ -67,7 +67,7 @@
             <div class="form-group"><label>商品名称 *</label><input type="text" id="productName" placeholder="如：2斤精品水牛切叶" required></div>
 
             <div class="form-row"><div class="form-group flex1"><label>商品编码</label><input type="text" id="productCode" placeholder="如：2JPSNQYP"></div><div class="form-group flex1"><label>分类</label><select id="productCategory"><option value="黑千层">黑千层</option><option value="白千层">白千层</option><option value="毛肚片">毛肚片</option><option value="整肚">整肚</option><option value="边角料">边角料</option><option value="虾滑">虾滑</option><option value="其他">其他</option>
-                        <option value="��烤系列">烧烤系列</option>
+                        <option value="烧烤系列">烧烤系列</option>
                         <option value="火锅食材">火锅食材</option></select></div></div>
 
             <div class="form-row"><div class="form-group flex1"><label>规格</label><input type="text" id="productSpec" placeholder="如：1件*25袋*2斤"></div><div class="form-row-inner"><div class="form-group flex1"><label>价格(元)</label><input type="number" id="productPriceNum" placeholder="数字" min="0" step="0.01"></div><div class="form-group flex1"><label>单位</label><select id="productPriceUnit"><option value="箱">箱</option><option value="斤">斤</option><option value="袋">袋</option><option value="kg">kg</option><option value="包">包</option><option value="件">件</option></select></div></div></div>
@@ -85,6 +85,42 @@
 
 
         <div id="productList" class="admin-list"></div>
+
+
+        <!-- 批量编辑底部操作栏 -->
+        <div id="batchBar" class="batch-bar" style="display:none;">
+            <div class="batch-bar-inner">
+                <span class="batch-bar-title">已选 <b id="batchCount">0</b> 个商品</span>
+                <button onclick="selectAll()" style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;margin-left:8px">全选</button>
+                <button onclick="deselectAll()" style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer">取消</button>
+            </div>
+            <div class="batch-bar-row">
+                <div class="batch-field">
+                    <label class="batch-label">分类</label>
+                    <select id="batchCategory" style="flex:1;padding:6px;border:none;background:transparent;font-size:13px;color:#333">
+                        <option value="">不修改</option>
+                        <option value="黑千层">黑千层</option><option value="白千层">白千层</option>
+                        <option value="毛肚片">毛肚片</option><option value="整肚">整肚</option>
+                        <option value="边角料">边角料</option><option value="虾滑">虾滑</option>
+                        <option value="其他">其他</option>
+                        <option value="烧烤系列">烧烤系列</option><option value="火锅食材">火锅食材</option>
+                    </select>
+                </div>
+                <div class="batch-field">
+                    <label class="batch-label">价格</label>
+                    <input type="number" id="batchPrice" placeholder="新价格" min="0" step="0.01" style="flex:1;border:none;background:transparent;font-size:13px;color:#333;padding:6px;width:80px">
+                </div>
+                <div class="batch-field">
+                    <label class="batch-label">单位</label>
+                    <select id="batchUnit" style="flex:1;padding:6px;border:none;background:transparent;font-size:13px;color:#333">
+                        <option value="">不修改</option>
+                        <option value="箱">箱</option><option value="斤">斤</option>
+                        <option value="袋">袋</option><option value="kg">kg</option><option value="包">包</option><option value="件">件</option>
+                    </select>
+                </div>
+                <button class="batch-btn-apply" onclick="doBatchApply()">执行修改</button>
+            </div>
+        </div>
 
 
 
@@ -122,7 +158,7 @@
 
         window.ADMIN_PASSWORD = '920615';
 
-        window.TABLE_NAME = 'food_showcase_products';
+        window.TABLE_NAME = 'products';
 
         window.BUCKET_NAME = 'product-media';
 
@@ -140,12 +176,7 @@
 
     </script>
 
-    <!-- 图片压缩库 -->
-    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.min.js"></script>
-    <!-- 视频压缩库（FFmpeg.wasm）-->
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/util.min.js"></script>
-    <script src="js/admin.js"></script>
+    <script src="js/admin.js?v=20260622"></script>
 
 </body>
 
