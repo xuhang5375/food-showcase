@@ -429,11 +429,11 @@ function playDetailVideo(videoUrl) {
     var video = document.getElementById('detailVideo');
     if (!video || !videoUrl) return;
 
-    // 先把按钮变成加载中状态
+    // 先把按钮变成加载中状态（旋转动画）
     if (card) {
         card.disabled = true;
-        card.style.opacity = '0.7';
-        card.innerHTML = '<span style="font-size:18px">⏳</span><span>视频加载中...</span>';
+        card.style.opacity = '0.85';
+        card.innerHTML = '<span class="video-spinner"></span><span>视频加载中...</span>';
     }
     if (wrap) wrap.style.display = 'block';
 
@@ -462,14 +462,14 @@ function playDetailVideo(videoUrl) {
         }
     }, { once: true });
 
-    // 超时处理：15秒还没加载出来就提示
+    // 超时处理：5秒还没加载出来就提示
     var timeout = setTimeout(function() {
         if (card && card.style.display !== 'none') {
             card.disabled = false;
             card.style.opacity = '1';
-            card.innerHTML = '<span style="font-size:20px">▶</span><span>加载较慢，点击重试</span>';
+            card.innerHTML = '<span style="font-size:20px">▶</span><span>加载慢了，点击重试</span>';
         }
-    }, 15000);
+    }, 5000);
     video.addEventListener('canplay', function() { clearTimeout(timeout); }, { once: true });
     video.addEventListener('error', function() { clearTimeout(timeout); }, { once: true });
 }
