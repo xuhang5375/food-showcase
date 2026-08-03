@@ -339,7 +339,7 @@ function showProductDetail(product) {
             '<span style="font-size:20px">▶</span><span>点击播放产品视频</span>' +
             '</button>' +
             '<div id="detailVideoWrap" style="display:none;margin-top:8px">' +
-            '<video id="detailVideo" src="" controls playsinline preload="none" style="width:100%;max-height:300px;border-radius:12px;background:#000"></video>' +
+            '<video id="detailVideo" src="" controls playsinline preload="none" style="width:100%;max-height:300px;border-radius:12px;background:#000;opacity:0;transition:opacity 0.3s"></video>' +
             '</div>' +
             '</div>';
     }
@@ -427,12 +427,51 @@ function playDetailVideo(videoUrl) {
     var card = document.getElementById('videoPlayCard');
     var wrap = document.getElementById('detailVideoWrap');
     var video = document.getElementById('detailVideo');
-    if (card) card.style.display = 'none';
-    if (wrap) wrap.style.display = 'block';
-    if (video) {
-        video.src = videoUrl;
-        video.play();
+    if (!video || !videoUrl) return;
+
+    // 先把按钮变成加载中状态
+    if (card) {
+        card.disabled = true;
+        card.style.opacity = '0.7';
+        card.innerHTML = '<span style="font-size:18px">⏳</span><span>视频加载中...</span>';
     }
+    if (wrap) wrap.style.display = 'block';
+
+    // 关键：覆盖 preload="none"，否则浏览器不下载视频
+    video.preload = 'auto';
+    video.src = videoUrl;
+
+    // 强制浏览器开始加载
+    video.load();
+
+    // 加载成功后自动播放
+    video.addEventListener('canplay', function onCanPlay() {
+        video.removeEventListener('canplay', onCanPlay);
+        if (card) card.style.display = 'none';
+        video.style.opacity = '1';
+        video.play().catch(function() {});
+    }, { once: true });
+
+    // 错误处理
+    video.addEventListener('error', function onErr() {
+        video.removeEventListener('error', onErr);
+        if (card) {
+            card.disabled = false;
+            card.style.opacity = '1';
+            card.innerHTML = '<span style="font-size:20px">▶</span><span>视频加载失败，点击重试</span>';
+        }
+    }, { once: true });
+
+    // 超时处理：15秒还没加载出来就提示
+    var timeout = setTimeout(function() {
+        if (card && card.style.display !== 'none') {
+            card.disabled = false;
+            card.style.opacity = '1';
+            card.innerHTML = '<span style="font-size:20px">▶</span><span>加载较慢，点击重试</span>';
+        }
+    }, 15000);
+    video.addEventListener('canplay', function() { clearTimeout(timeout); }, { once: true });
+    video.addEventListener('error', function() { clearTimeout(timeout); }, { once: true });
 }
 
 // ---- 收藏切换 ----
