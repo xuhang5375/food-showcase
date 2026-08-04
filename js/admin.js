@@ -98,6 +98,8 @@ function checkPassword() {
 
         loadVideoToggle();
 
+        loadVisitorToggle();
+
     } else {
 
         alert('密码错误');
@@ -227,7 +229,108 @@ async function toggleVideo() {
 
 
 
-// ---- Toast ----
+// ---- 访客登记开关 ----
+
+async function loadVisitorToggle() {
+
+    var btn = document.getElementById('visitorToggleBtn');
+
+    if (!btn) return;
+
+    btn.textContent = '访客登记: 加载中...';
+
+    btn.disabled = true;
+
+    try {
+
+        var _vtUrl = SUPABASE_URL + '/rest/v1/app_config?key=eq.visitor_enabled&select=value&limit=1';
+        var _vtResp = await fetch(_vtUrl, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } });
+        var data = null, error = null;
+        if (!_vtResp.ok) { error = { message: 'HTTP ' + _vtResp.status }; }
+        else { try { var _vtArr = await _vtResp.json(); data = _vtArr.length > 0 ? _vtArr[0] : null; } catch(e) { error = e; } }
+
+        if (error || !data) {
+            // 未配置时默认为开启
+            btn.textContent = '访客登记: 已开启';
+            btn.style.background = '#4caf50';
+            btn.style.color = '#fff';
+            btn.disabled = false;
+            btn.dataset.enabled = 'true';
+            return;
+        }
+
+        var enabled = data.value !== 'false';
+
+        btn.textContent = '访客登记: ' + (enabled ? '已开启' : '已关闭');
+
+        btn.style.background = enabled ? '#4caf50' : '#f5f5f5';
+
+        btn.style.color = enabled ? '#fff' : '#666';
+
+        btn.disabled = false;
+
+        btn.dataset.enabled = enabled ? 'true' : 'false';
+
+    } catch (e) {
+
+        btn.textContent = '访客登记: 加载失败';
+
+        btn.disabled = false;
+
+    }
+
+}
+
+
+
+async function toggleVisitor() {
+
+    var btn = document.getElementById('visitorToggleBtn');
+
+    if (!btn || btn.disabled) return;
+
+    var currentEnabled = btn.dataset.enabled === 'true';
+
+    var newEnabled = !currentEnabled;
+
+    if (!confirm('确定' + (newEnabled ? '开启' : '关闭') + '访客登记功能？')) return;
+
+    btn.disabled = true;
+
+    btn.textContent = '切换中...';
+
+    try {
+
+        var _tvBody = JSON.stringify({ value: String(newEnabled) });
+        var _tvResp = await fetch(SUPABASE_URL + '/rest/v1/app_config?key=eq.visitor_enabled', {
+            method: 'PATCH',
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+            body: _tvBody
+        });
+        var error = null;
+        if (!_tvResp.ok) { error = { message: 'HTTP ' + _tvResp.status }; }
+
+        if (error) { alert('切换失败: ' + error.message); btn.disabled = false; return; }
+
+        btn.dataset.enabled = newEnabled ? 'true' : 'false';
+
+        btn.textContent = '访客登记: ' + (newEnabled ? '已开启' : '已关闭');
+
+        btn.style.background = newEnabled ? '#4caf50' : '#f5f5f5';
+
+        btn.style.color = newEnabled ? '#fff' : '#666';
+
+        showToast('访客登记已' + (newEnabled ? '开启' : '关闭'));
+
+    } catch (e) {
+
+        alert('切换失败: ' + e.message);
+
+    }
+
+    btn.disabled = false;
+
+}// ---- Toast ----
 
 function showToast(msg, duration) {
 
@@ -596,9 +699,28 @@ function renderImagePreview() {
 
     var html = '';
 
-    existingImageUrls.forEach(function(url, i) { html += '<div style="position:relative;display:inline-block;margin:4px"><img src="' + url + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px"><button onclick="removeExistingImage(' + i + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button></div>'; });
+    existingImageUrls.forEach(function(url, i) {
+        var moveLeft = i > 0 ? '<button onclick="moveExistingImage(' + i + ',-1)" style="flex:1;border:none;background:transparent;color:#fff;font-size:14px;cursor:pointer;padding:2px 0">←</button>' : '<span style="flex:1"></span>';
+        var moveRight = i < existingImageUrls.length - 1 ? '<button onclick="moveExistingImage(' + i + ',1)" style="flex:1;border:none;background:transparent;color:#fff;font-size:14px;cursor:pointer;padding:2px 0">→</button>' : '<span style="flex:1"></span>';
+        html += '<div style="position:relative;display:inline-block;margin:4px">' +
+            '<img src="' + url + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;display:block">' +
+            '<div style="position:absolute;top:2px;left:2px;background:rgba(0,0,0,0.55);color:#fff;font-size:10px;padding:1px 5px;border-radius:3px">' + (i+1) + '</div>' +
+            '<button onclick="removeExistingImage(' + i + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button>' +
+            '<div style="position:absolute;bottom:0;left:0;right:0;display:flex;height:20px;background:linear-gradient(transparent,rgba(0,0,0,0.6));border-radius:0 0 6px 6px">' + moveLeft + moveRight + '</div>' +
+            '</div>';
+    });
 
-    newImageFiles.forEach(function(img, i) { html += '<div style="position:relative;display:inline-block;margin:4px"><img src="' + img.previewUrl + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px"><button onclick="removeNewImage(' + i + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button><div style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.5);color:#fff;font-size:10px;padding:1px 4px;border-radius:3px">新</div></div>'; });
+    newImageFiles.forEach(function(img, i) {
+        var moveLeft = i > 0 ? '<button onclick="moveNewImage(' + i + ',-1)" style="flex:1;border:none;background:transparent;color:#fff;font-size:14px;cursor:pointer;padding:2px 0">←</button>' : '<span style="flex:1"></span>';
+        var moveRight = i < newImageFiles.length - 1 ? '<button onclick="moveNewImage(' + i + ',1)" style="flex:1;border:none;background:transparent;color:#fff;font-size:14px;cursor:pointer;padding:2px 0">→</button>' : '<span style="flex:1"></span>';
+        html += '<div style="position:relative;display:inline-block;margin:4px">' +
+            '<img src="' + img.previewUrl + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;display:block">' +
+            '<div style="position:absolute;top:2px;left:2px;background:rgba(0,0,0,0.55);color:#fff;font-size:10px;padding:1px 5px;border-radius:3px">' + (existingImageUrls.length+i+1) + '</div>' +
+            '<button onclick="removeNewImage(' + i + ')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ff4444;color:#fff;border:none;font-size:12px;cursor:pointer">×</button>' +
+            '<div style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.5);color:#fff;font-size:10px;padding:1px 4px;border-radius:3px">新</div>' +
+            '<div style="position:absolute;bottom:0;left:0;right:0;display:flex;height:20px;background:linear-gradient(transparent,rgba(0,0,0,0.6));border-radius:0 0 6px 6px">' + moveLeft + moveRight + '</div>' +
+            '</div>';
+    });
 
     document.getElementById('imagePreview').innerHTML = html;
 
@@ -606,6 +728,24 @@ function renderImagePreview() {
 
     document.getElementById('imageUploadText').textContent = total > 0 ? '✅ 共 ' + total + ' 张图片' : '📷 点击上传图片（可多选）';
 
+}
+
+function moveExistingImage(index, dir) {
+    var newIdx = index + dir;
+    if (newIdx < 0 || newIdx >= existingImageUrls.length) return;
+    var temp = existingImageUrls[index];
+    existingImageUrls[index] = existingImageUrls[newIdx];
+    existingImageUrls[newIdx] = temp;
+    renderImagePreview();
+}
+
+function moveNewImage(index, dir) {
+    var newIdx = index + dir;
+    if (newIdx < 0 || newIdx >= newImageFiles.length) return;
+    var temp = newImageFiles[index];
+    newImageFiles[index] = newImageFiles[newIdx];
+    newImageFiles[newIdx] = temp;
+    renderImagePreview();
 }
 
 function removeExistingImage(index) { existingImageUrls.splice(index, 1); renderImagePreview(); }
