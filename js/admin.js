@@ -100,6 +100,8 @@ function checkPassword() {
 
         loadVisitorToggle();
 
+        loadCallToggle();
+
     } else {
 
         alert('密码错误');
@@ -329,6 +331,154 @@ async function toggleVisitor() {
     }
 
     btn.disabled = false;
+
+}
+
+// ---- 拨号开关 ----
+
+async function loadCallToggle() {
+
+    var btn = document.getElementById('callToggleBtn');
+
+    if (!btn) return;
+
+    btn.textContent = '拨号功能: 加载中...';
+
+    btn.disabled = true;
+
+    try {
+
+        var _ctUrl = SUPABASE_URL + '/rest/v1/app_config?key=in.(call_button_enabled,contact_phone)&select=key,value';
+        var _ctResp = await fetch(_ctUrl, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } });
+        var data = null, error = null;
+        if (!_ctResp.ok) { error = { message: 'HTTP ' + _ctResp.status }; }
+        else { try { data = await _ctResp.json(); } catch(e) { error = e; } }
+
+        if (error) { btn.textContent = '拨号功能: 加载失败'; btn.disabled = false; return; }
+
+        var enabled = false;
+        var phone = '';
+        if (Array.isArray(data)) {
+            data.forEach(function(c) {
+                if (c.key === 'call_button_enabled') enabled = c.value === 'true';
+                if (c.key === 'contact_phone') phone = c.value || '';
+            });
+        }
+
+        btn.textContent = '拨号功能: ' + (enabled ? '已开启' : '已关闭');
+        btn.style.background = enabled ? '#4caf50' : '#f5f5f5';
+        btn.style.color = enabled ? '#fff' : '#666';
+        btn.disabled = false;
+        btn.dataset.enabled = enabled ? 'true' : 'false';
+
+        var phoneInput = document.getElementById('contactPhoneInput');
+        if (phoneInput) phoneInput.value = phone;
+
+    } catch (e) {
+
+        btn.textContent = '拨号功能: 加载失败';
+
+        btn.disabled = false;
+
+    }
+
+}
+
+
+
+async function toggleCall() {
+
+    var btn = document.getElementById('callToggleBtn');
+
+    if (!btn || btn.disabled) return;
+
+    var currentEnabled = btn.dataset.enabled === 'true';
+
+    var newEnabled = !currentEnabled;
+
+    if (!confirm('确定' + (newEnabled ? '开启' : '关闭') + '拨号功能？')) return;
+
+    btn.disabled = true;
+
+    btn.textContent = '切换中...';
+
+    try {
+
+        var _tcBody = JSON.stringify({ value: String(newEnabled) });
+        var _tcResp = await fetch(SUPABASE_URL + '/rest/v1/app_config?key=eq.call_button_enabled', {
+            method: 'PATCH',
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+            body: _tcBody
+        });
+        var error = null;
+        if (!_tcResp.ok) { error = { message: 'HTTP ' + _tcResp.status }; }
+
+        if (error) {
+            // 可能是记录不存在，尝试 upsert
+            var _upResp = await fetch(SUPABASE_URL + '/rest/v1/app_config', {
+                method: 'POST',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+                body: JSON.stringify({ key: 'call_button_enabled', value: String(newEnabled) })
+            });
+            if (!_upResp.ok) { alert('切换失败: HTTP ' + _upResp.status); btn.disabled = false; return; }
+        }
+
+        btn.dataset.enabled = newEnabled ? 'true' : 'false';
+        btn.textContent = '拨号功能: ' + (newEnabled ? '已开启' : '已关闭');
+        btn.style.background = newEnabled ? '#4caf50' : '#f5f5f5';
+        btn.style.color = newEnabled ? '#fff' : '#666';
+
+        showToast('拨号功能已' + (newEnabled ? '开启' : '关闭'));
+
+    } catch (e) {
+
+        alert('切换失败: ' + e.message);
+
+    }
+
+    btn.disabled = false;
+
+}
+
+
+
+async function saveContactPhone() {
+
+    var input = document.getElementById('contactPhoneInput');
+
+    if (!input) return;
+
+    var phone = input.value.trim();
+
+    if (!phone) {
+        if (!confirm('电话号码为空，确定保存？')) return;
+    }
+
+    try {
+
+        var _spResp = await fetch(SUPABASE_URL + '/rest/v1/app_config?key=eq.contact_phone', {
+            method: 'PATCH',
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value: phone })
+        });
+
+        if (!_spResp.ok) {
+            // 记录不存在，尝试 upsert
+            var _upResp = await fetch(SUPABASE_URL + '/rest/v1/app_config', {
+                method: 'POST',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+                body: JSON.stringify({ key: 'contact_phone', value: phone })
+            });
+            if (!_upResp.ok) { alert('保存失败: HTTP ' + _upResp.status); return; }
+        }
+
+        showToast('电话号码已保存');
+
+    } catch (e) {
+
+        alert('保存失败: ' + e.message);
+
+    }
 
 }// ---- Toast ----
 

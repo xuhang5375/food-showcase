@@ -54,6 +54,13 @@
 
             <button id="visitorToggleBtn" onclick="toggleVisitor()" style="padding:8px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-left:8px">访客登记: 加载中...</button>
 
+            <button id="callToggleBtn" onclick="toggleCall()" style="padding:8px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-left:8px">拨号功能: 加载中...</button>
+
+            <span style="display:inline-flex;align-items:center;margin-left:8px;gap:4px">
+                <input id="contactPhoneInput" type="text" placeholder="联系电话" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;width:120px">
+                <button onclick="saveContactPhone()" style="padding:6px 10px;border:1px solid #4caf50;border-radius:6px;background:#4caf50;color:#fff;cursor:pointer;font-size:13px">保存</button>
+            </span>
+
             <button id="visitorBtn" onclick="showVisitorLogs()" style="padding:8px 14px;border:1px solid #2196F3;border-radius:6px;background:#2196F3;color:#fff;cursor:pointer;font-size:13px;margin-left:8px">访客记录</button>
 
         </div>
@@ -178,7 +185,7 @@
 
     </script>
 
-    <script src="js/admin.js?v=20260804a"></script>
+    <script src="js/admin.js?v=20260804b"></script>
 
 </body>
 
