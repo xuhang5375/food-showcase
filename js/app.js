@@ -319,11 +319,11 @@ function showProductDetail(product) {
                     '</div>';
                 dotsHtml += '<span class="carousel-dot" data-index="' + i + '" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (i === 0 ? '#e4393c' : '#d9d9d9') + ';margin:0 4px;cursor:pointer;transition:background 0.2s"></span>';
             });
-            mediaHtml = '<div class="carousel-container" id="carouselContainer">' +
+            mediaHtml = '<div class="carousel-container" id="carouselContainer" style="position:relative">' +
                 slidesHtml +
-                '<button class="carousel-prev" onclick="carouselGo(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:35px;height:35px;border:none;background:rgba(0,0,0,0.35);color:#fff;font-size:20px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.7;line-height:35px;text-align:center">‹</button>' +
-                '<button class="carousel-next" onclick="carouselGo(1)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:35px;height:35px;border:none;background:rgba(0,0,0,0.35);color:#fff;font-size:20px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.7;line-height:35px;text-align:center">›</button>' +
-                '<div class="carousel-counter" style="position:absolute;right:10px;top:10px;background:rgba(0,0,0,0.5);color:#fff;font-size:12px;padding:2px 8px;border-radius:10px;z-index:2">1/' + images.length + '</div>' +
+                '<button class="carousel-prev" onclick="carouselGo(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:none;background:rgba(0,0,0,0.5);color:#fff;font-size:24px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.85;line-height:44px;text-align:center;padding:0">‹</button>' +
+                '<button class="carousel-next" onclick="carouselGo(1)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:none;background:rgba(0,0,0,0.5);color:#fff;font-size:24px;border-radius:50%;cursor:pointer;z-index:2;opacity:0.85;line-height:44px;text-align:center;padding:0">›</button>' +
+                '<div class="carousel-counter" style="position:absolute;right:10px;top:10px;background:rgba(0,0,0,0.6);color:#fff;font-size:13px;padding:3px 12px;border-radius:12px;z-index:2;font-weight:500">1/' + images.length + '</div>' +
                 '<div class="carousel-dots" style="text-align:center;padding:8px 0">' + dotsHtml + '</div>' +
                 '</div>';
         } else {
@@ -511,8 +511,8 @@ function carouselShow(idx) {
     if (counter) counter.textContent = (idx + 1) + '/' + slides.length;
     const prevBtn = document.querySelector('#detailModal .carousel-prev');
     const nextBtn = document.querySelector('#detailModal .carousel-next');
-    if (prevBtn) prevBtn.style.opacity = idx === 0 ? '0.3' : '0.7';
-    if (nextBtn) nextBtn.style.opacity = idx === slides.length - 1 ? '0.3' : '0.7';
+    if (prevBtn) prevBtn.style.opacity = idx === 0 ? '0.3' : '0.85';
+    if (nextBtn) nextBtn.style.opacity = idx === slides.length - 1 ? '0.3' : '0.85';
 }
 
 function carouselGo(dir) {
