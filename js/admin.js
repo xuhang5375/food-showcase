@@ -524,6 +524,11 @@ async function loadProducts() {
 
     if (!container) return;
 
+    // 保存当前搜索/筛选/滚动状态，重载后恢复
+    var _prevKw = (document.getElementById('adminSearch') ? document.getElementById('adminSearch').value : '');
+    var _prevSt = (document.getElementById('adminStatusFilter') ? document.getElementById('adminStatusFilter').value : 'all');
+    var _prevSc = window.pageYOffset || document.documentElement.scrollTop || 0;
+
     container.innerHTML = '<div style="text-align:center;padding:40px;color:#999">加载中...</div>';
 
     try {
@@ -609,6 +614,14 @@ async function loadProducts() {
         html += '</div>';
 
         container.innerHTML = html;
+
+        // 恢复搜索/筛选/滚动状态
+        var _ns = document.getElementById('adminSearch');
+        if (_ns) _ns.value = _prevKw;
+        var _nf = document.getElementById('adminStatusFilter');
+        if (_nf) _nf.value = _prevSt;
+        if (_prevKw || _prevSt !== 'all') filterProducts();
+        window.scrollTo(0, _prevSc);
 
     } catch (e) {
 
@@ -1369,7 +1382,11 @@ async function deleteProduct(id) {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
             });
             var error = !_dpResp.ok ? { message: 'HTTP ' + _dpResp.status } : null;
-            if (error) { alert('删除失败: ' + error.message); return; } showToast('已删除'); loadProducts(); }
+            if (error) { alert('删除失败: ' + error.message); return; }
+            // 只移除该卡片 DOM，保留搜索/筛选/滚动状态，不整表重拉
+            var _delEl = document.getElementById('productItem_' + id);
+            if (_delEl) { _delEl.remove(); filterProducts(); } else { loadProducts(); }
+            showToast('已删除'); }
 
     catch (e) { alert('网络错误: ' + e.message); }
 
