@@ -1275,26 +1275,95 @@ async function loadVisitorLogs() {
     }
 }
 
+var expandedVisitorGroups = {};
+
+function groupVisitors(list) {
+    var groupMap = {};
+    var groups = [];
+    list.forEach(function(v) {
+        var key = v.phone ? 'p_' + v.phone : (v.name ? 'n_' + v.name : 's_' + v.id);
+        if (!groupMap[key]) {
+            groupMap[key] = {
+                key: key,
+                name: v.name || '未填写',
+                phone: v.phone || '',
+                totalVisits: 0,
+                lastVisit: v.created_at,
+                records: []
+            };
+            groups.push(groupMap[key]);
+        }
+        var g = groupMap[key];
+        g.totalVisits++;
+        if (v.created_at > g.lastVisit) g.lastVisit = v.created_at;
+        g.records.push(v);
+    });
+    groups.forEach(function(g) {
+        g.records.sort(function(a, b) {
+            if (a.created_at > b.created_at) return -1;
+            if (a.created_at < b.created_at) return 1;
+            return 0;
+        });
+    });
+    groups.sort(function(a, b) {
+        if (a.lastVisit > b.lastVisit) return -1;
+        if (a.lastVisit < b.lastVisit) return 1;
+        return 0;
+    });
+    return groups;
+}
+
 function renderVisitorList(list) {
     var container = document.getElementById('visitorList');
     if (!list || list.length === 0) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#999">暂无访客记录</div>'; return; }
-    var html = '<div style="padding:8px 16px;color:#888;font-size:13px">共 ' + list.length + ' 条记录</div>';
-    list.forEach(function(v) {
-        var name = v.name || '-';
-        var phone = v.phone || '-';
-        var visitTime = formatBeijingTime(v.visit_time);
-        var created = formatBeijingTime(v.created_at);
-        var page = v.page || '-';
-        html += '<div class="visitor-item" data-name="' + name.toLowerCase() + '" data-phone="' + phone + '" style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #eee;gap:12px">' +
+    var groups = groupVisitors(list);
+    var html = '<div style="padding:8px 16px;color:#888;font-size:13px">总访客 ' + groups.length + ' 人 · 总访问 ' + list.length + ' 次</div>';
+    groups.forEach(function(g) {
+        var expanded = expandedVisitorGroups[g.key];
+        var lastTime = formatBeijingTime(g.lastVisit);
+        html += '<div style="border-bottom:1px solid #eee">' +
+            '<div onclick="toggleVisitorGroup(\'' + g.key + '\')" style="display:flex;align-items:center;padding:12px 16px;cursor:pointer;gap:12px">' +
             '<div style="width:40px;height:40px;border-radius:50%;background:#e3f2fd;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👤</div>' +
             '<div style="flex:1;min-width:0">' +
-            '<div style="font-weight:600;font-size:14px">' + name + '</div>' +
-            '<div style="color:#888;font-size:12px;margin-top:2px">' + phone + '</div></div>' +
+            '<div style="font-weight:600;font-size:14px">' + g.name + '</div>' +
+            '<div style="color:#888;font-size:12px;margin-top:2px">' + (g.phone || '-') + ' · 访问 ' + g.totalVisits + ' 次</div>' +
+            '</div>' +
             '<div style="text-align:right;flex-shrink:0">' +
-            '<div style="font-size:12px;color:#666">' + visitTime + '</div>' +
-            '<div style="font-size:11px;color:#aaa;margin-top:2px">' + page + '</div></div></div>';
+            '<div style="font-size:12px;color:#666">' + lastTime + '</div>' +
+            '<div style="font-size:16px;color:#aaa;margin-top:2px">' + (expanded ? '▼' : '▶') + '</div>' +
+            '</div></div>';
+        if (expanded) {
+            html += '<div style="background:#f9f9f9;padding:4px 0">';
+            g.records.forEach(function(rec) {
+                var recTime = formatBeijingTime(rec.created_at);
+                var page = rec.page || 'index';
+                html += '<div style="display:flex;align-items:center;padding:8px 16px 8px 56px;gap:8px">' +
+                    '<div style="width:6px;height:6px;border-radius:50%;background:#4caf50;flex-shrink:0"></div>' +
+                    '<div style="flex:1;font-size:12px;color:#666">' + page + '</div>' +
+                    '<div style="font-size:12px;color:#999">' + recTime + '</div>' +
+                    '</div>';
+            });
+            html += '</div>';
+        }
+        html += '</div>';
     });
     container.innerHTML = html;
+}
+
+function toggleVisitorGroup(key) {
+    if (expandedVisitorGroups[key]) {
+        delete expandedVisitorGroups[key];
+    } else {
+        expandedVisitorGroups[key] = true;
+    }
+    var keyword = (document.getElementById('visitorSearch').value || '').toLowerCase().trim();
+    var filtered = allVisitorLogs;
+    if (keyword) {
+        filtered = allVisitorLogs.filter(function(v) {
+            return (v.name || '').toLowerCase().indexOf(keyword) >= 0 || (v.phone || '').indexOf(keyword) >= 0;
+        });
+    }
+    renderVisitorList(filtered);
 }
 
 function filterVisitors() {
