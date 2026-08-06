@@ -315,7 +315,7 @@ function showProductDetail(product) {
             var dotsHtml = '';
             images.forEach(function(url, i) {
                 slidesHtml += '<div class="carousel-slide" data-index="' + i + '" style="display:' + (i === 0 ? 'block' : 'none') + '">' +
-                    '<img src="' + mediaUrl(url) + '" style="width:100%;height:280px;object-fit:contain;background:#f8f8f8;border-radius:12px">' +
+                    '<img src="' + mediaUrl(url) + '" style="width:100%;height:280px;object-fit:contain;background:#f8f8f8;border-radius:12px;cursor:zoom-in" onclick="showBigImg(this.src)">' +
                     '</div>';
                 dotsHtml += '<span class="carousel-dot" data-index="' + i + '" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (i === 0 ? '#e4393c' : '#d9d9d9') + ';margin:0 4px;cursor:pointer;transition:background 0.2s"></span>';
             });
@@ -327,7 +327,7 @@ function showProductDetail(product) {
                 '<div class="carousel-dots" style="text-align:center;padding:8px 0">' + dotsHtml + '</div>' +
                 '</div>';
         } else {
-            mediaHtml = '<div style="margin-bottom:12px"><img src="' + mediaUrl(images[0]) + '" style="width:100%;height:auto;max-height:300px;object-fit:contain;border-radius:12px;background:#f8f8f8"></div>';
+            mediaHtml = '<div style="margin-bottom:12px"><img src="' + mediaUrl(images[0]) + '" style="width:100%;height:auto;max-height:300px;object-fit:contain;border-radius:12px;background:#f8f8f8;cursor:zoom-in" onclick="showBigImg(this.src)"></div>';
         }
     }
 
@@ -580,3 +580,5 @@ function showVisitorRegister() {
     });
 }
 
+// img fullscreen
+function showBigImg(src){var v=document.createElement("div");v.style.cssText="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,1);display:flex;align-items:center;justify-content:center;z-index:9999;cursor:zoom-out";var img=document.createElement("img");img.src=src;img.style.cssText="max-width:100%;max-height:100%;object-fit:contain";v.appendChild(img);v.addEventListener("click",function(){v.remove()});document.body.appendChild(v)}
