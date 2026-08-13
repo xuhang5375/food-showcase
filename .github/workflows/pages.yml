@@ -23,8 +23,15 @@ jobs:
 
       - name: Inject secrets
         run: |
-          sed -i "s|\[YOUR_COS_SECRET_ID\]|${{ secrets.COS_SECRET_ID }}|g" admin.html js/config.js
-          sed -i "s|\[YOUR_COS_SECRET_KEY\]|${{ secrets.COS_SECRET_KEY }}|g" admin.html js/config.js
+          # js/config.js 已被删除（chore: 移除死代码），仅对存在文件做替换，避免 sed 失败中断部署
+          if [ -f js/config.js ]; then
+            sed -i "s|\[YOUR_COS_SECRET_ID\]|${{ secrets.COS_SECRET_ID }}|g" js/config.js
+            sed -i "s|\[YOUR_COS_SECRET_KEY\]|${{ secrets.COS_SECRET_KEY }}|g" js/config.js
+          fi
+          if [ -f admin.html ]; then
+            sed -i "s|\[YOUR_COS_SECRET_ID\]|${{ secrets.COS_SECRET_ID }}|g" admin.html
+            sed -i "s|\[YOUR_COS_SECRET_KEY\]|${{ secrets.COS_SECRET_KEY }}|g" admin.html
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
