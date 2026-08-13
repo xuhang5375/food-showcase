@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>管理后台 - 食材采购</title>
+
+    <link rel="stylesheet" href="css/style.css?v=20260803c">
+
+</head>
+
+<body>
+
+    <header class="top-header">
+
+        <span style="color:#fff;font-size:16px;font-weight:600;">管理后台</span>
+
+        <a href="https://xuhang5375.github.io/food-showcase/" class="admin-link">返回前台</a>
+
+    </header>
+
+
+
+    <div id="loginSection" class="login-page">
+
+        <div class="login-box">
+
+            <h2>管理员登录</h2>
+
+            <input type="password" id="passwordInput" placeholder="请输入管理密码" autocomplete="off">
+
+            <button class="login-btn" onclick="checkPassword()">登 录</button>
+
+        </div>
+
+    </div>
+
+
+
+    <div id="adminSection" style="display:none;padding-top:46px;min-height:100vh;">
+
+        <div class="admin-toolbar">
+
+            <button class="btn-add" onclick="showAddForm()">＋ 添加商品</button>
+
+            <button id="batchToggleBtn" onclick="toggleBatchMode()" style="padding:8px 14px;border:1px solid #ff9800;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-left:8px;color:#ff9800">✎ 批量操作</button>
+
+            <button id="videoToggleBtn" onclick="toggleVideo()" style="padding:8px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-left:8px">视频功能: 加载中...</button>
+
+            <button id="visitorToggleBtn" onclick="toggleVisitor()" style="padding:8px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-left:8px">访客登记: 加载中...</button>
+
+            <button id="callToggleBtn" onclick="toggleCall()" style="padding:8px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-left:8px">拨号功能: 加载中...</button>
+
+            <span style="display:inline-flex;align-items:center;margin-left:8px;gap:4px">
+                <input id="contactPhoneInput" type="text" placeholder="联系电话" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;width:120px">
+                <button onclick="saveContactPhone()" style="padding:6px 10px;border:1px solid #4caf50;border-radius:6px;background:#4caf50;color:#fff;cursor:pointer;font-size:13px">保存</button>
+            </span>
+
+            <button id="visitorBtn" onclick="showVisitorLogs()" style="padding:8px 14px;border:1px solid #2196F3;border-radius:6px;background:#2196F3;color:#fff;cursor:pointer;font-size:13px;margin-left:8px">访客记录</button>
+
+        </div>
+
+
+
+        <div id="productForm" class="product-form" style="display:none;">
+
+            <h3 id="formTitle">添加商品</h3>
+
+            <input type="hidden" id="productId">
+
+            <div class="form-group"><label>商品名称 *</label><input type="text" id="productName" placeholder="如：2斤精品水牛切叶" required></div>
+
+            <div class="form-row"><div class="form-group flex1"><label>商品编码</label><input type="text" id="productCode" placeholder="如：2JPSNQYP"></div><div class="form-group flex1"><label>分类</label><select id="productCategory"><option value="黑千层">黑千层</option><option value="白千层">白千层</option><option value="毛肚片">毛肚片</option><option value="整肚">整肚</option><option value="边角料">边角料</option><option value="虾滑">虾滑</option><option value="其他">其他</option>
+                        <option value="烧烤系列">烧烤系列</option>
+                        <option value="火锅食材">火锅食材</option></select></div></div>
+
+            <div class="form-row"><div class="form-group flex1"><label>规格</label><input type="text" id="productSpec" placeholder="如：1件*25袋*2斤"></div><div class="form-row-inner"><div class="form-group flex1"><label>价格(元)</label><input type="number" id="productPriceNum" placeholder="数字" min="0" step="0.01"></div><div class="form-group flex1"><label>单位</label><select id="productPriceUnit"><option value="箱">箱</option><option value="斤">斤</option><option value="袋">袋</option><option value="kg">kg</option><option value="包">包</option><option value="件">件</option></select></div></div></div>
+
+            <div class="form-group"><label>商品描述</label><textarea id="productDesc" placeholder="选填，商品详细描述"></textarea></div>
+
+            <div class="form-group"><label>商品图片（可多选）</label><div class="upload-area" onclick="document.getElementById('imageFile').click()"><span id="imageUploadText">点击上传图片</span></div><input type="file" id="imageFile" accept="image/*" multiple style="display:none;"><div id="imagePreview" class="preview-area"></div></div>
+
+            <div class="form-group"><label>商品视频（选填）</label><div class="upload-area" onclick="document.getElementById('videoFile').click()"><span id="videoUploadText">点击上传视频</span></div><input type="file" id="videoFile" accept="video/*" style="display:none;"><div id="videoPreview" class="preview-area"></div></div>
+
+            <div class="form-actions"><button class="btn-save" onclick="saveProduct()">保 存</button><button class="btn-cancel" onclick="hideForm()">取 消</button></div>
+
+        </div>
+
+
+
+        <div id="productList" class="admin-list"></div>
+
+
+        <!-- 批量编辑底部操作栏 -->
+        <div id="batchBar" class="batch-bar" style="display:none;">
+            <div class="batch-bar-inner">
+                <span class="batch-bar-title">已选 <b id="batchCount">0</b> 个商品</span>
+                <button onclick="selectAll()" style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;margin-left:8px">全选</button>
+                <button onclick="deselectAll()" style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer">取消</button>
+            </div>
+            <div class="batch-bar-row">
+                <div class="batch-field">
+                    <label class="batch-label">分类</label>
+                    <select id="batchCategory" style="flex:1;padding:6px;border:none;background:transparent;font-size:13px;color:#333">
+                        <option value="">不修改</option>
+                        <option value="黑千层">黑千层</option><option value="白千层">白千层</option>
+                        <option value="毛肚片">毛肚片</option><option value="整肚">整肚</option>
+                        <option value="边角料">边角料</option><option value="虾滑">虾滑</option>
+                        <option value="其他">其他</option>
+                        <option value="烧烤系列">烧烤系列</option><option value="火锅食材">火锅食材</option>
+                    </select>
+                </div>
+                <div class="batch-field">
+                    <label class="batch-label">价格</label>
+                    <input type="number" id="batchPrice" placeholder="新价格" min="0" step="0.01" style="flex:1;border:none;background:transparent;font-size:13px;color:#333;padding:6px;width:80px">
+                </div>
+                <div class="batch-field">
+                    <label class="batch-label">单位</label>
+                    <select id="batchUnit" style="flex:1;padding:6px;border:none;background:transparent;font-size:13px;color:#333">
+                        <option value="">不修改</option>
+                        <option value="箱">箱</option><option value="斤">斤</option>
+                        <option value="袋">袋</option><option value="kg">kg</option><option value="包">包</option><option value="件">件</option>
+                    </select>
+                </div>
+                <button class="batch-btn-apply" onclick="doBatchApply()">执行修改</button>
+            </div>
+        </div>
+
+
+
+        <div id="visitorSection" style="display:none;">
+
+            <div style="padding:12px 16px;display:flex;gap:8px;align-items:center;background:#f9f9f9;border-bottom:1px solid #eee;flex-wrap:wrap">
+
+                <input id="visitorSearch" type="text" placeholder="搜索姓名/手机号..." oninput="filterVisitors()" style="flex:1;min-width:150px;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px">
+
+                <button onclick="loadVisitorLogs()" style="padding:8px 14px;border:none;border-radius:6px;background:#2196F3;color:#fff;cursor:pointer;font-size:13px">刷新</button>
+
+                <button onclick="hideVisitorLogs()" style="padding:8px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">返回商品</button>
+
+            </div>
+
+            <div id="visitorList" class="admin-list"></div>
+
+        </div>
+
+    </div>
+
+
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+
+    <!-- 本地化 supabase 客户端，避免依赖国外 CDN 模块（国内常超时导致后台加载失败） -->
+    <script src="js/supabase-full.js"></script>
+
+    <script>
+        window.SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
+
+        window.SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
+
+        window.supabase = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+        window.ADMIN_PASSWORD = '920615';
+
+        window.TABLE_NAME = 'food_showcase_products';
+
+        window.BUCKET_NAME = 'product-media';
+
+        window.COS_SECRET_ID = '[YOUR_COS_SECRET_ID]';
+
+        window.COS_SECRET_KEY = '[YOUR_COS_SECRET_KEY]';
+
+        window.COS_BUCKET = '799195375-1306702381';
+
+        window.COS_REGION = 'ap-guangzhou';
+
+        window.COS_CDN_URL = 'https://799195375-1306702381.cos.ap-guangzhou.myqcloud.com';
+
+        window.COS_UPLOAD_FOLDER = 'food-showcase';
+
+    </script>
+
+    <script src="js/admin.js?v=20260813a"></script>
+
+</body>
+
+</html>
