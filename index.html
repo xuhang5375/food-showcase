@@ -65,7 +65,7 @@
 
     async function initApp() {
         try {
-            await loadScript('js/supabase-full.js');
+            await loadScript('js/supabase_full.js');
             const SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
             const SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
             window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
