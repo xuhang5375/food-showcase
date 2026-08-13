@@ -20,7 +20,7 @@
 
         <span style="color:#fff;font-size:16px;font-weight:600;">管理后台</span>
 
-        <a href="index.html" class="admin-link">返回前台</a>
+        <a href="https://xuhang5375.github.io/food-showcase/" class="admin-link">返回前台</a>
 
     </header>
 
@@ -155,15 +155,15 @@
 
     <script src="https://cdn.bootcdn.net/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 
-    <script type="module">
+    <!-- 本地化 supabase 客户端，避免依赖国外 CDN 模块（国内常超时导致后台加载失败） -->
+    <script src="js/supabase-full.js"></script>
 
-        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
+    <script>
         window.SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
 
         window.SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
 
-        window.supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+        window.supabase = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
         window.ADMIN_PASSWORD = '920615';
 
@@ -185,7 +185,7 @@
 
     </script>
 
-    <script src="js/admin.js?v=20260804b"></script>
+    <script src="js/admin.js?v=20260813a"></script>
 
 </body>
 
