@@ -15,8 +15,6 @@ let searchKeyword = '';
 let videoEnabled = true;
 let callEnabled = false;
 let contactPhone = '';
-let visitorEnabled = true;
-let visitorRegistered = false;
 
 // ---- 北京时间转换 ----
 function formatBeijingTime(isoStr) {
@@ -66,25 +64,16 @@ function toggleFavorite(id) {
                     if (c.key === 'video_enabled') videoEnabled = c.value !== 'false';
                     if (c.key === 'call_button_enabled') callEnabled = c.value === 'true';
                     if (c.key === 'contact_phone') contactPhone = c.value || '';
-                    if (c.key === 'visitor_enabled') visitorEnabled = c.value !== 'false';
                 });
             }
         } catch (e) {
             console.warn('读取配置失败，使用默认值:', e);
         }
 
-        // 检查是否已登记
-        visitorRegistered = localStorage.getItem('visitorRegistered') === 'true';
-
         await loadProducts();
         buildCategoryNav();
         renderProducts();
         bindEvents();
-
-        // 访客登记弹窗
-        if (visitorEnabled && !visitorRegistered) {
-            showVisitorRegister();
-        }
     } catch (err) {
         console.error('初始化失败:', err);
         var el = document.getElementById('products');
@@ -521,63 +510,6 @@ function carouselGo(dir) {
     let idx = _carouselIndex + dir;
     if (idx < 0 || idx >= slides.length) return;
     carouselShow(idx);
-}
-
-// ---- 访客登记弹窗 ----
-function showVisitorRegister() {
-    var existing = document.getElementById('visitorRegisterModal');
-    if (existing) return;
-
-    var modal = document.createElement('div');
-    modal.id = 'visitorRegisterModal';
-    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:2000';
-    modal.innerHTML = '<div style="background:#fff;border-radius:16px;width:90%;max-width:360px;padding:28px 24px 24px;text-align:center">' +
-        '<div style="font-size:48px;margin-bottom:12px">📋</div>' +
-        '<div style="font-size:18px;font-weight:600;color:#1a1a1a;margin-bottom:4px">访客登记</div>' +
-        '<div style="font-size:13px;color:#999;margin-bottom:20px">请填写信息后浏览商品</div>' +
-        '<input id="vrName" type="text" placeholder="请输入您的姓名" style="width:100%;padding:12px 14px;border:1px solid #e0e0e0;border-radius:10px;font-size:15px;margin-bottom:12px;box-sizing:border-box;outline:none">' +
-        '<input id="vrPhone" type="tel" placeholder="请输入手机号" maxlength="11" style="width:100%;padding:12px 14px;border:1px solid #e0e0e0;border-radius:10px;font-size:15px;margin-bottom:20px;box-sizing:border-box;outline:none">' +
-        '<button id="vrSubmit" style="width:100%;padding:13px;background:#e4393c;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer">提交并进入</button>' +
-        '</div>';
-
-    document.body.appendChild(modal);
-
-    document.getElementById('vrSubmit').addEventListener('click', async function() {
-        var name = document.getElementById('vrName').value.trim();
-        var phone = document.getElementById('vrPhone').value.trim();
-        if (!name) { alert('请输入姓名'); return; }
-        if (!/^\d{11}$/.test(phone)) { alert('请输入正确的11位手机号'); return; }
-
-        var btn = document.getElementById('vrSubmit');
-        btn.disabled = true;
-        btn.textContent = '提交中...';
-
-        try {
-            await fetch(SUPABASE_URL + '/rest/v1/visitor_logs', {
-                method: 'POST',
-                headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=minimal'
-                },
-                body: JSON.stringify({
-                    name: name,
-                    phone: phone,
-                    page: 'index',
-                    visit_time: new Date().toISOString()
-                })
-            });
-            localStorage.setItem('visitorRegistered', 'true');
-            visitorRegistered = true;
-            modal.remove();
-        } catch (e) {
-            console.error('登记失败:', e);
-            btn.disabled = false;
-            btn.textContent = '提交并进入';
-            alert('提交失败，请重试');
-        }
-    });
 }
 
 // img fullscreen
