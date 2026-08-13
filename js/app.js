@@ -320,11 +320,16 @@ function showProductDetail(product) {
         }
     }
 
-    // 视频区域 — 直接显示 video 标签，自动加载+静音播放，无需点击按钮
+    // 视频区域 — 点击按钮后开始加载并播放
     var videoHtml = '';
     if (hasVideo) {
         videoHtml = '<div style="margin-bottom:12px">' +
-            '<video src="' + mediaUrl(product.video) + '" controls playsinline muted autoplay loop preload="metadata" style="width:100%;max-height:360px;border-radius:12px;background:#000;display:block"></video>' +
+            '<button id="videoPlayCard" onclick="playDetailVideo(\'' + mediaUrl(product.video).replace(/'/g, "\\'") + '\')" style="width:100%;border:none;background:#1a1a1a;color:#fff;padding:14px 20px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;transition:background 0.2s">' +
+            '<span style="font-size:20px">▶</span><span>点击播放产品视频</span>' +
+            '</button>' +
+            '<div id="detailVideoWrap" style="display:none;margin-top:8px">' +
+            '<video id="detailVideo" src="" controls playsinline preload="none" style="width:100%;max-height:360px;border-radius:12px;background:#000;opacity:0;transition:opacity 0.3s"></video>' +
+            '</div>' +
             '</div>';
     }
 
@@ -402,6 +407,58 @@ function showProductDetail(product) {
     });
 
     document.body.appendChild(modal);
+}
+
+// ---- 视频点击播放 ----
+function playDetailVideo(videoUrl) {
+    var card = document.getElementById('videoPlayCard');
+    var wrap = document.getElementById('detailVideoWrap');
+    var video = document.getElementById('detailVideo');
+    if (!video || !videoUrl) return;
+
+    // 先把按钮变成加载中状态（旋转动画）
+    if (card) {
+        card.disabled = true;
+        card.style.opacity = '0.85';
+        card.innerHTML = '<span class="video-spinner"></span><span>视频加载中...</span>';
+    }
+    if (wrap) wrap.style.display = 'block';
+
+    // 关键：覆盖 preload="none"，否则浏览器不下载视频
+    video.preload = 'auto';
+    video.src = videoUrl;
+
+    // 强制浏览器开始加载
+    video.load();
+
+    // 加载成功后自动播放
+    video.addEventListener('canplay', function onCanPlay() {
+        video.removeEventListener('canplay', onCanPlay);
+        if (card) card.style.display = 'none';
+        video.style.opacity = '1';
+        video.play().catch(function() {});
+    }, { once: true });
+
+    // 错误处理
+    video.addEventListener('error', function onErr() {
+        video.removeEventListener('error', onErr);
+        if (card) {
+            card.disabled = false;
+            card.style.opacity = '1';
+            card.innerHTML = '<span style="font-size:20px">▶</span><span>视频加载失败，点击重试</span>';
+        }
+    }, { once: true });
+
+    // 超时处理：15秒还没加载出来就提示
+    var timeout = setTimeout(function() {
+        if (card && card.style.display !== 'none') {
+            card.disabled = false;
+            card.style.opacity = '1';
+            card.innerHTML = '<span style="font-size:20px">▶</span><span>加载慢了，点击重试</span>';
+        }
+    }, 15000);
+    video.addEventListener('canplay', function() { clearTimeout(timeout); }, { once: true });
+    video.addEventListener('error', function() { clearTimeout(timeout); }, { once: true });
 }
 
 // ---- 收藏切换 ----
