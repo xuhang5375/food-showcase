@@ -320,16 +320,11 @@ function showProductDetail(product) {
         }
     }
 
-    // 视频区域 — 点击播放，不生成缩略图
+    // 视频区域 — 直接显示 video 标签，自动加载+静音播放，无需点击按钮
     var videoHtml = '';
     if (hasVideo) {
         videoHtml = '<div style="margin-bottom:12px">' +
-            '<button id="videoPlayCard" onclick="playDetailVideo(\'' + mediaUrl(product.video).replace(/'/g, "\\'") + '\')" style="width:100%;border:none;background:#1a1a1a;color:#fff;padding:14px 20px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;transition:background 0.2s">' +
-            '<span style="font-size:20px">▶</span><span>点击播放产品视频</span>' +
-            '</button>' +
-            '<div id="detailVideoWrap" style="display:none;margin-top:8px">' +
-            '<video id="detailVideo" src="" controls playsinline preload="none" style="width:100%;max-height:300px;border-radius:12px;background:#000;opacity:0;transition:opacity 0.3s"></video>' +
-            '</div>' +
+            '<video src="' + mediaUrl(product.video) + '" controls playsinline muted autoplay loop preload="metadata" style="width:100%;max-height:360px;border-radius:12px;background:#000;display:block"></video>' +
             '</div>';
     }
 
@@ -370,14 +365,13 @@ function showProductDetail(product) {
 
     var modal = document.createElement('div');
     modal.id = 'detailModal';
-    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center;z-index:1000';
-    modal.innerHTML = '<div style="background:#fff;width:100%;max-width:500px;max-height:85vh;border-radius:16px 16px 0 0;overflow-y:auto;position:relative;animation:slideUp 0.25s ease-out;padding-bottom:' + (showBottomBar ? '70px' : '20px') + '">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 16px 8px">' +
-        '<h3 style="margin:0;font-size:18px;font-weight:600;color:#1a1a1a">' + (product.name || '商品详情') + '</h3>' +
-        '<button onclick="document.getElementById(\'detailModal\').remove()" style="border:none;background:#f0f0f0;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:16px;color:#666;line-height:30px;text-align:center">✕</button>' +
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:1000;overflow-y:auto';
+    modal.innerHTML = '<div style="background:#fff;width:100%;max-width:500px;margin:0 auto;min-height:100%;padding-bottom:' + (showBottomBar ? '70px' : 'env(safe-area-inset-bottom, 20px)') + '">' +
+        '<div style="position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#fff;border-bottom:1px solid #f0f0f0">' +
+        '<h3 style="margin:0;font-size:17px;font-weight:600;color:#1a1a1a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (product.name || '商品详情') + '</h3>' +
+        '<button onclick="document.getElementById(\'detailModal\').remove()" style="border:none;background:#f0f0f0;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:18px;color:#666;line-height:32px;text-align:center;flex-shrink:0;margin-left:8px">✕</button>' +
         '</div>' +
-        '<div style="padding:0 16px">' + mediaHtml + videoHtml + infoHtml + '</div>' +
-        '<div style="padding:0 16px;text-align:center;color:#ccc;font-size:12px;padding-bottom:8px">—— 向上滑动查看更多 ——</div>' +
+        '<div style="padding:16px">' + mediaHtml + videoHtml + infoHtml + '</div>' +
         '</div>' +
         (showBottomBar ? bottomBarHtml : '');
 
@@ -408,58 +402,6 @@ function showProductDetail(product) {
     });
 
     document.body.appendChild(modal);
-}
-
-// ---- 视频点击播放 ----
-function playDetailVideo(videoUrl) {
-    var card = document.getElementById('videoPlayCard');
-    var wrap = document.getElementById('detailVideoWrap');
-    var video = document.getElementById('detailVideo');
-    if (!video || !videoUrl) return;
-
-    // 先把按钮变成加载中状态（旋转动画）
-    if (card) {
-        card.disabled = true;
-        card.style.opacity = '0.85';
-        card.innerHTML = '<span class="video-spinner"></span><span>视频加载中...</span>';
-    }
-    if (wrap) wrap.style.display = 'block';
-
-    // 关键：覆盖 preload="none"，否则浏览器不下载视频
-    video.preload = 'auto';
-    video.src = videoUrl;
-
-    // 强制浏览器开始加载
-    video.load();
-
-    // 加载成功后自动播放
-    video.addEventListener('canplay', function onCanPlay() {
-        video.removeEventListener('canplay', onCanPlay);
-        if (card) card.style.display = 'none';
-        video.style.opacity = '1';
-        video.play().catch(function() {});
-    }, { once: true });
-
-    // 错误处理
-    video.addEventListener('error', function onErr() {
-        video.removeEventListener('error', onErr);
-        if (card) {
-            card.disabled = false;
-            card.style.opacity = '1';
-            card.innerHTML = '<span style="font-size:20px">▶</span><span>视频加载失败，点击重试</span>';
-        }
-    }, { once: true });
-
-    // 超时处理：5秒还没加载出来就提示
-    var timeout = setTimeout(function() {
-        if (card && card.style.display !== 'none') {
-            card.disabled = false;
-            card.style.opacity = '1';
-            card.innerHTML = '<span style="font-size:20px">▶</span><span>加载慢了，点击重试</span>';
-        }
-    }, 5000);
-    video.addEventListener('canplay', function() { clearTimeout(timeout); }, { once: true });
-    video.addEventListener('error', function() { clearTimeout(timeout); }, { once: true });
 }
 
 // ---- 收藏切换 ----
