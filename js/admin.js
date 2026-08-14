@@ -44,6 +44,46 @@ var COS_UPLOAD_FOLDER = window.COS_UPLOAD_FOLDER || 'food-showcase';
 
 let isLoggedIn = false;
 
+// ---- 后台登录会话（30 分钟内免重复输入密码）----
+var SESSION_KEY = 'foodshowcase_admin_session';
+var SESSION_MINUTES = 30;
+var SESSION_MS = SESSION_MINUTES * 60 * 1000;
+var _sessionTimer = null;
+function setAdminSession() { try { localStorage.setItem(SESSION_KEY, String(Date.now() + SESSION_MS)); } catch (e) {} }
+function getAdminSession() { try { var exp = parseInt(localStorage.getItem(SESSION_KEY) || '0', 10); return (exp && exp > Date.now()) ? exp : null; } catch (e) { return null; } }
+function clearAdminSession() { try { localStorage.removeItem(SESSION_KEY); } catch (e) {} }
+function stopSessionTimer() { if (_sessionTimer) { clearInterval(_sessionTimer); _sessionTimer = null; } }
+function startSessionTimer() {
+    var hint = document.getElementById('sessionHint');
+    if (!hint) {
+        hint = document.createElement('span');
+        hint.id = 'sessionHint';
+        hint.style.cssText = 'margin-left:8px;font-size:12px;color:#888;align-self:center;white-space:nowrap';
+        var toolbar = document.querySelector('.admin-toolbar');
+        if (toolbar) toolbar.appendChild(hint);
+    }
+    stopSessionTimer();
+    _sessionTimer = setInterval(function () {
+        var exp = getAdminSession();
+        if (!exp) { stopSessionTimer(); return; }
+        var left = Math.max(0, exp - Date.now());
+        var m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
+        hint.textContent = '登录有效 ' + m + '分' + (s < 10 ? '0' : '') + s + '秒（' + SESSION_MINUTES + '分钟内免重复输入）';
+        if (left <= 0) { stopSessionTimer(); logoutAdmin(); alert('登录已过期，请重新输入密码'); }
+    }, 1000);
+}
+function enterAdmin() {
+    isLoggedIn = true;
+    setAdminSession();
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('adminSection').style.display = 'block';
+    startSessionTimer();
+    loadProducts();
+    loadVideoToggle();
+    loadVisitorToggle();
+    loadCallToggle();
+}
+
 let editingId = null;
 
 let existingImageUrls = [];
@@ -88,19 +128,7 @@ function checkPassword() {
 
     if (pw === ADMIN_PASSWORD) {
 
-        isLoggedIn = true;
-
-        document.getElementById('loginSection').style.display = 'none';
-
-        document.getElementById('adminSection').style.display = 'block';
-
-        loadProducts();
-
-        loadVideoToggle();
-
-        loadVisitorToggle();
-
-        loadCallToggle();
+        enterAdmin();
 
     } else {
 
@@ -129,6 +157,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var videoFile = document.getElementById('videoFile');
 
     if (videoFile) videoFile.addEventListener('change', handleVideoUpload);
+
+    if (getAdminSession()) {
+        enterAdmin();
+    }
 
 });
 
@@ -1396,7 +1428,7 @@ async function deleteProduct(id) {
 
 // ---- 退出登录 ----
 
-function logoutAdmin() { isLoggedIn = false; document.getElementById('loginSection').style.display = 'block'; document.getElementById('adminSection').style.display = 'none'; document.getElementById('passwordInput').value = ''; }
+function logoutAdmin() { isLoggedIn = false; clearAdminSession(); stopSessionTimer(); var hint = document.getElementById('sessionHint'); if (hint) hint.textContent = ''; document.getElementById('loginSection').style.display = 'block'; document.getElementById('adminSection').style.display = 'none'; document.getElementById('passwordInput').value = ''; }
 
 
 
