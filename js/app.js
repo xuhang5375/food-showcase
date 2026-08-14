@@ -324,11 +324,17 @@ function showProductDetail(product) {
     // 保留「点击播放产品视频」按钮作为覆盖层 UI，但底层 video 已在后台缓冲
     var videoHtml = '';
     if (hasVideo) {
+        // 首帧封面：用商品第一张图作 poster，点开先看到图不黑屏（缓冲期间也显示）
+        var _poster = (images && images.length > 0) ? mediaUrl(images[0]) : '';
         videoHtml = '<div style="position:relative;margin-bottom:12px;background:#000;border-radius:12px;overflow:hidden">' +
-            '<video id="detailVideo" src="' + mediaUrl(product.video) + '" controls playsinline preload="auto" style="width:100%;max-height:360px;display:block;background:#000"></video>' +
+            '<video id="detailVideo" src="' + mediaUrl(product.video) + '" poster="' + _poster + '" controls playsinline preload="auto" style="width:100%;max-height:360px;display:block;background:#000"></video>' +
             '<button id="videoPlayCard" onclick="playDetailVideo()" style="position:absolute;inset:0;width:100%;height:100%;border:none;background:rgba(0,0,0,0.45);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;transition:opacity 0.2s">' +
             '<span style="font-size:22px">▶</span><span>点击播放产品视频</span>' +
             '</button>' +
+            '<div id="videoLoading" style="position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(0,0,0,0.55);color:#fff;font-size:14px">' +
+            '<div style="width:34px;height:34px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite"></div>' +
+            '<span>视频加载中…</span>' +
+            '</div>' +
             '</div>';
     }
 
@@ -409,10 +415,11 @@ function showProductDetail(product) {
 }
 
 // ---- 视频点击播放 ----
-// 视频在渲染时已经 preload=auto 后台缓冲，这里只隐藏按钮 + 直接播放
+// 视频在渲染时已经 preload=auto 后台缓冲，这里隐藏按钮 + 显示加载提示 + 直接播放
 function playDetailVideo() {
     var card = document.getElementById('videoPlayCard');
     var video = document.getElementById('detailVideo');
+    var loading = document.getElementById('videoLoading');
     if (!video) return;
 
     // 隐藏「点击播放」覆盖层
@@ -421,11 +428,20 @@ function playDetailVideo() {
         setTimeout(function() { if (card) card.style.display = 'none'; }, 200);
     }
 
+    // 缓冲期间显示「视频加载中」提示
+    if (loading) loading.style.display = 'flex';
+
+    // 缓冲完成/可播放时隐藏提示；播放中再次缓冲（卡顿）时重新显示
+    video.addEventListener('playing', function() { if (loading) loading.style.display = 'none'; });
+    video.addEventListener('canplay', function() { if (loading) loading.style.display = 'none'; });
+    video.addEventListener('waiting', function() { if (loading) loading.style.display = 'flex'; });
+
     // 已缓冲好，直接播放；没缓冲完浏览器会自动等 canplay 再播
     var p = video.play();
     if (p && p.catch) {
         p.catch(function() {
             // 自动播放被拦截（如未静音），用户手动点一下控制条即可
+            if (loading) loading.style.display = 'none';
         });
     }
 }

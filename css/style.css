@@ -1022,3 +1022,6 @@ body {
 .detail-call-btn:active {
     opacity: 0.85;
 }
+
+/* 视频缓冲加载动画 */
+@keyframes spin { to { transform: rotate(360deg); } }
