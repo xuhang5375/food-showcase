@@ -69,7 +69,10 @@
 
         <div id="productForm" class="product-form" style="display:none;">
 
-            <h3 id="formTitle">添加商品</h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px">
+                <h3 id="formTitle" style="margin:0">添加商品</h3>
+                <button onclick="hideForm()" style="padding:7px 16px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap">← 返回商品列表</button>
+            </div>
 
             <input type="hidden" id="productId">
 
