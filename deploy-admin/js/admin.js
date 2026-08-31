@@ -167,6 +167,7 @@ function pushVisitorNotify(name, phone) {
     try { new Notification('牛副产品·新访客登记', { body: msg }); } catch (e) {}
   }
   showToast(msg, 5000);
+  pushWechatNotify(name, phone); // 同步推送到普通微信(服务通知)
 }
 function startVisitorNotifyWatch() {
   if ('Notification' in window && Notification.permission === 'default') {
@@ -199,8 +200,48 @@ function startVisitorNotifyWatch() {
   beginWatch();
 }
 
+// ============ 普通微信提醒(Server酱中转，个人微信收「服务通知」) ============
+var wechatNotifyKey = '';
+function loadWechatNotifyKey() {
+  fetch(SUPABASE_URL + '/rest/v1/app_config?select=value&key=eq.wechat_notify_key', {
+    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
+  }).then(function(r) { return r.json(); }).then(function(rows) {
+    var v = (rows && rows[0] && rows[0].value) || '';
+    wechatNotifyKey = v;
+    var inp = document.getElementById('wechatKeyInput');
+    if (inp && v) inp.value = v;
+  }).catch(function() {});
+}
+function saveWechatNotifyKey() {
+  var inp = document.getElementById('wechatKeyInput');
+  if (!inp) return;
+  var key = inp.value.trim();
+  wechatNotifyKey = key;
+  fetch(SUPABASE_URL + '/rest/v1/app_config?key=eq.wechat_notify_key', {
+    method: 'PATCH', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: key })
+  }).then(function(r) {
+    if (r.ok) { showToast('微信提醒已保存'); } else { throw new Error('fail'); }
+  }).catch(function() {
+    fetch(SUPABASE_URL + '/rest/v1/app_config', {
+      method: 'POST', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'wechat_notify_key', value: key })
+    }).then(function(r) { if (r.ok) showToast('微信提醒已保存'); else showToast('保存失败'); }).catch(function() { showToast('保存失败'); });
+  });
+}
+function pushWechatNotify(name, phone) {
+  if (!wechatNotifyKey) return;
+  var desp = '新访客登记：' + (name || '访客') + '  ' + phone;
+  fetch('https://sctapi.ftqq.com/' + encodeURIComponent(wechatNotifyKey) + '.send', {
+    method: 'POST', mode: 'no-cors',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'title=' + encodeURIComponent('牛副产品·新访客登记') + '&desp=' + encodeURIComponent(desp)
+  }).catch(function() {});
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   markAdminDevice();
+  loadWechatNotifyKey();
   startVisitorNotifyWatch();
 
     var pwInput = document.getElementById('passwordInput');
