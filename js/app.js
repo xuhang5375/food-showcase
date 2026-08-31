@@ -105,6 +105,8 @@ function getWebVisitorId() {
 
 // 记录一条访客日志，返回 Promise<rowId|null>
 function logVisitor(pageVal) {
+    // 过滤：进过管理后台的本机设备不计入访客（运营者自身流量排除）
+    try { if (localStorage.getItem('wb_admin_device') === '1') return Promise.resolve(null); } catch (e) {}
     return fetch(SUPABASE_URL + '/rest/v1/visitor_logs', {
         method: 'POST',
         headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },

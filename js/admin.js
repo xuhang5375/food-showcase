@@ -144,7 +144,68 @@ function checkPassword() {
 
 
 
+// ============ 管理后台设备标记 + 运营者自身访客清理 ============
+// 进过后台的本机浏览器不计入访客统计（尽量过滤运营者自身流量）
+function markAdminDevice() {
+  try { localStorage.setItem('wb_admin_device', '1'); } catch (e) {}
+  // 软删本浏览器(openid)已有的访客记录，使运营者自身历史流量不污染统计
+  try {
+    var id = localStorage.getItem('web_visitor_id');
+    if (id) {
+      fetch(SUPABASE_URL + '/rest/v1/visitor_logs?openid=eq.' + encodeURIComponent(id) + '&deleted_at=is.null', {
+        method: 'PATCH',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deleted_at: new Date().toISOString() })
+      }).catch(function() {});
+    }
+  } catch (e) {}
+}
+
+// ============ 实时新登记访客提醒（桌面通知 + 页面提示）============
+var NOTIFY_VIRTUAL = { '访客': 1, '浏览用户': 1, '未登录用户': 1, '浏览用户(未注册)': 1, '网页访客': 1, '未填写': 1 };
+var notifiedPhones = {};
+function pushVisitorNotify(name, phone) {
+  var msg = '🔔 新访客登记：' + (name || '访客') + '  ' + phone;
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try { new Notification('牛副产品·新访客登记', { body: msg }); } catch (e) {}
+  }
+  showToast(msg, 5000);
+}
+function startVisitorNotifyWatch() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    try { Notification.requestPermission(); } catch (e) {}
+  }
+  // 种子：把已有真实手机号标记为已通知，仅对新出现的手机号提醒（避免历史记录轰炸）
+  try { notifiedPhones = JSON.parse(localStorage.getItem('notified_phones') || '{}'); } catch (e) { notifiedPhones = {}; }
+  function beginWatch() {
+    fetch(SUPABASE_URL + '/rest/v1/visitor_logs?select=phone&deleted_at=is.null&limit=400', {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
+    }).then(function(r) { return r.json(); }).then(function(rows) {
+      (rows || []).forEach(function(v) { var p = v.phone || ''; if (/^\d{11}$/.test(p) && p !== '00000000000') notifiedPhones[p] = 1; });
+      try { localStorage.setItem('notified_phones', JSON.stringify(notifiedPhones)); } catch (e) {}
+      setInterval(function() {
+        fetch(SUPABASE_URL + '/rest/v1/visitor_logs?select=id,openid,name,phone,created_at&deleted_at=is.null&order=created_at.desc&limit=50', {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
+        }).then(function(r) { return r.json(); }).then(function(rows) {
+          (rows || []).forEach(function(v) {
+            var p = v.phone || '';
+            if (/^\d{11}$/.test(p) && p !== '00000000000' && !notifiedPhones[p]) {
+              notifiedPhones[p] = 1;
+              var nm = (v.name && !NOTIFY_VIRTUAL[v.name]) ? v.name : '访客';
+              pushVisitorNotify(nm, p);
+            }
+          });
+          try { localStorage.setItem('notified_phones', JSON.stringify(notifiedPhones)); } catch (e) {}
+        }).catch(function() {});
+      }, 15000);
+    }).catch(function() {});
+  }
+  beginWatch();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+  markAdminDevice();
+  startVisitorNotifyWatch();
 
     var pwInput = document.getElementById('passwordInput');
 
