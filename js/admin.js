@@ -1618,13 +1618,29 @@ function renderVisitorList(list) {
         var expanded = expandedVisitorGroups[g.key];
         var lastTime = formatBeijingTime(g.lastVisit);
         var o = g.openid || '';
-        var label, sub;
-        if (o.indexOf('web_') === 0) { label = '网页访客'; }
+        // 优先显示该访客记录里最新的真实姓名（排除匿名占位），与小程序后台一致
+        var VIRTUAL_NAMES = { '访客': 1, '浏览用户': 1, '未登录用户': 1, '浏览用户(未注册)': 1, '网页访客': 1, '未填写': 1 };
+        var realName = '';
+        for (var ri = 0; ri < g.records.length; ri++) {
+          var nm = g.records[ri].name;
+          if (nm && !VIRTUAL_NAMES[nm]) { realName = nm; break; }
+        }
+        var label, sub, src;
+        if (o.indexOf('web_') === 0) src = '网页';
+        else if (o.indexOf('device_') === 0) src = '小程序';
+        else if (o.indexOf('user_') === 0) src = '小程序';
+        else src = '其他';
+        if (realName) {
+          label = realName;
+          sub = src + (g.phone && g.phone !== '00000000000' ? (' · ' + g.phone) : (' · ID ' + o.slice(-6))) + ' · 访问 ' + g.totalVisits + ' 次';
+        } else if (o.indexOf('web_') === 0) { label = '网页访客'; }
         else if (o.indexOf('device_') === 0) { label = '小程序访客'; }
         else if (o.indexOf('user_') === 0) { label = '小程序用户'; }
-        else if (g.phone) { label = g.phone; }
+        else if (g.phone && g.phone !== '00000000000') { label = g.phone; }
         else { label = g.name || '访客'; }
-        sub = (g.phone || (o ? ('ID ' + o.slice(-6)) : '-')) + ' · 访问 ' + g.totalVisits + ' 次';
+        if (!realName) {
+          sub = (g.phone && g.phone !== '00000000000' ? g.phone : (o ? ('ID ' + o.slice(-6)) : '-')) + ' · 访问 ' + g.totalVisits + ' 次';
+        }
         var canDelGroup = !!o; // 仅当能定位到个体访客(openid)才显示「删除该访客」
         html += '<div style="border-bottom:1px solid #eee">' +
             '<div onclick="toggleVisitorGroup(\'' + g.key + '\')" style="display:flex;align-items:center;padding:12px 16px;cursor:pointer;gap:12px">' +
