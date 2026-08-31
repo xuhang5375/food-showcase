@@ -1559,10 +1559,13 @@ function groupVisitors(list) {
     var groupMap = {};
     var groups = [];
     list.forEach(function(v) {
-        var key = v.phone ? 'p_' + v.phone : (v.name ? 'n_' + v.name : 's_' + v.id);
+        // 关键修复：优先按 openid 区分个体访客，否则所有匿名访客(phone=00000000000)会被合并成一个大组
+        var key = (v.openid && v.openid !== 'unknown') ? ('o_' + v.openid)
+            : (v.phone ? ('p_' + v.phone) : (v.name ? ('n_' + v.name) : ('s_' + v.id)));
         if (!groupMap[key]) {
             groupMap[key] = {
                 key: key,
+                openid: v.openid || '',
                 name: v.name || '未填写',
                 phone: v.phone || '',
                 totalVisits: 0,
@@ -1614,13 +1617,23 @@ function renderVisitorList(list) {
     groups.forEach(function(g) {
         var expanded = expandedVisitorGroups[g.key];
         var lastTime = formatBeijingTime(g.lastVisit);
+        var o = g.openid || '';
+        var label, sub;
+        if (o.indexOf('web_') === 0) { label = '网页访客'; }
+        else if (o.indexOf('device_') === 0) { label = '小程序访客'; }
+        else if (o.indexOf('user_') === 0) { label = '小程序用户'; }
+        else if (g.phone) { label = g.phone; }
+        else { label = g.name || '访客'; }
+        sub = (g.phone || (o ? ('ID ' + o.slice(-6)) : '-')) + ' · 访问 ' + g.totalVisits + ' 次';
+        var canDelGroup = !!o; // 仅当能定位到个体访客(openid)才显示「删除该访客」
         html += '<div style="border-bottom:1px solid #eee">' +
             '<div onclick="toggleVisitorGroup(\'' + g.key + '\')" style="display:flex;align-items:center;padding:12px 16px;cursor:pointer;gap:12px">' +
             '<div style="width:40px;height:40px;border-radius:50%;background:#e3f2fd;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👤</div>' +
             '<div style="flex:1;min-width:0">' +
-            '<div style="font-weight:600;font-size:14px">' + g.name + '</div>' +
-            '<div style="color:#888;font-size:12px;margin-top:2px">' + (g.phone || '-') + ' · 访问 ' + g.totalVisits + ' 次</div>' +
+            '<div style="font-weight:600;font-size:14px">' + label + '</div>' +
+            '<div style="color:#888;font-size:12px;margin-top:2px">' + sub + '</div>' +
             '</div>' +
+            (canDelGroup ? '<button onclick="event.stopPropagation();deleteVisitorGroup(\'' + o + '\',' + g.totalVisits + ')" style="padding:3px 10px;border:none;border-radius:5px;background:#fff0f0;color:#e4393c;cursor:pointer;font-size:12px;flex-shrink:0;margin-right:8px">删除该访客</button>' : '') +
             '<div style="text-align:right;flex-shrink:0">' +
             '<div style="font-size:12px;color:#666">' + lastTime + '</div>' +
             '<div style="font-size:16px;color:#aaa;margin-top:2px">' + (expanded ? '▼' : '▶') + '</div>' +
@@ -1661,6 +1674,32 @@ async function deleteVisitorLog(id) {
     }
 }
 
+// ---- 删除整个访客（按 openid 软删其全部未删记录，与小程序互通）----
+async function deleteVisitorGroup(openid, count) {
+    if (!openid) return;
+    if (!confirm('确定删除该访客的全部 ' + (count || '') + ' 条访问记录吗？\n删除后将在网页与小程序后台同步隐藏，不可恢复。')) return;
+    try {
+        var q = SUPABASE_URL + '/rest/v1/visitor_logs?select=id&openid=eq.' + encodeURIComponent(openid) + '&deleted_at=is.null';
+        var r1 = await fetch(q, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } });
+        if (!r1.ok) { alert('查询失败: HTTP ' + r1.status); return; }
+        var ids = await r1.json();
+        if (!ids.length) { showToast('无记录'); await loadVisitorLogs(); return; }
+        var okCount = 0;
+        for (var i = 0; i < ids.length; i++) {
+            var resp = await fetch(SUPABASE_URL + '/rest/v1/visitor_logs?id=eq.' + encodeURIComponent(ids[i].id), {
+                method: 'PATCH',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deleted_at: new Date().toISOString() })
+            });
+            if (resp.ok) okCount++;
+        }
+        showToast('已删除该访客 ' + okCount + ' 条记录');
+        await loadVisitorLogs();
+    } catch (e) {
+        alert('删除失败: ' + (e.message || e));
+    }
+}
+
 function toggleVisitorGroup(key) {
     if (expandedVisitorGroups[key]) {
         delete expandedVisitorGroups[key];
@@ -1671,7 +1710,7 @@ function toggleVisitorGroup(key) {
     var filtered = allVisitorLogs;
     if (keyword) {
         filtered = allVisitorLogs.filter(function(v) {
-            return (v.name || '').toLowerCase().indexOf(keyword) >= 0 || (v.phone || '').indexOf(keyword) >= 0;
+            return (v.name || '').toLowerCase().indexOf(keyword) >= 0 || (v.phone || '').indexOf(keyword) >= 0 || (v.openid || '').toLowerCase().indexOf(keyword) >= 0;
         });
     }
     renderVisitorList(filtered);
@@ -1681,7 +1720,7 @@ function filterVisitors() {
     var keyword = (document.getElementById('visitorSearch').value || '').toLowerCase().trim();
     if (!keyword) { renderVisitorList(allVisitorLogs); return; }
     var filtered = allVisitorLogs.filter(function(v) {
-        return (v.name || '').toLowerCase().indexOf(keyword) >= 0 || (v.phone || '').indexOf(keyword) >= 0;
+        return (v.name || '').toLowerCase().indexOf(keyword) >= 0 || (v.phone || '').indexOf(keyword) >= 0 || (v.openid || '').toLowerCase().indexOf(keyword) >= 0;
     });
     renderVisitorList(filtered);
 }
