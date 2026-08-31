@@ -51,6 +51,78 @@ function toggleFavorite(id) {
 }
 
 // ---- 初始化 ----
+// ---- 网页访客埋点 ----
+// 视图停留状态机：当前停留视图可以是「分类列表(category)」或「商品详情(detail)」
+// 切换视图时自动结算上一个视图的停留时长（分类列表直接展示图文视频价格，不一定点详情）
+var viewState = null; // { type:'category'|'detail', id, name, startTime, logPromise }
+
+function getCurrentCatLabel(name) {
+    var c = categories.find(function(x) { return x.name === name; });
+    return c ? c.label : name;
+}
+
+// 结束上一个视图（记录停留时长），开始一个新视图
+function startView(type, id, name) {
+    if (viewState && viewState.startTime) flushView();
+    viewState = { type: type, id: id, name: name, startTime: Date.now(), logPromise: logVisitor(type + '|||' + id + '|||' + name) };
+}
+
+// 结算当前视图停留时长（异步写库，不阻塞 UI）
+function flushView() {
+    if (!viewState || !viewState.startTime || !viewState.logPromise) return;
+    var vs = viewState;
+    var dur = Math.max(0, Math.round((Date.now() - vs.startTime) / 1000));
+    vs.startTime = 0; // 标记已结算，防止重复结算
+    vs.logPromise.then(function(id) {
+        if (id) {
+            fetch(SUPABASE_URL + '/rest/v1/visitor_logs?id=eq.' + encodeURIComponent(id), {
+                method: 'PATCH',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ page: vs.type + '|||' + vs.id + '|||' + vs.name + '|||dur=' + dur + 's' })
+            }).catch(function(e) { console.warn('停留时长记录失败:', e); });
+        }
+    }).catch(function() {});
+}
+
+// 结束当前视图（结算并清空）
+function endView() {
+    if (viewState && viewState.startTime) flushView();
+    viewState = null;
+}
+
+function getWebVisitorId() {
+    try {
+        var id = localStorage.getItem('web_visitor_id');
+        if (!id) {
+            id = 'web_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+            localStorage.setItem('web_visitor_id', id);
+        }
+        return id;
+    } catch (e) {
+        return 'web_anon_' + Math.random().toString(36).slice(2, 8);
+    }
+}
+
+// 记录一条访客日志，返回 Promise<rowId|null>
+function logVisitor(pageVal) {
+    return fetch(SUPABASE_URL + '/rest/v1/visitor_logs', {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+        body: JSON.stringify([{ openid: getWebVisitorId(), name: '网页访客', phone: '00000000000', visit_time: new Date().toISOString(), page: pageVal }])
+    }).then(function(r) { return r.json(); })
+      .then(function(d) { return (d && d[0]) ? d[0].id : null; })
+      .catch(function(e) { console.warn('访客记录失败:', e); return null; });
+}
+
+// 关闭商品详情弹层：结算详情停留，回到列表重新开始计当前分类停留
+async function closeDetailModal() {
+    var modal = document.getElementById('detailModal');
+    if (!modal) return;
+    modal.remove();
+    endView(); // 结算详情停留
+    startView('category', currentCategory, getCurrentCatLabel(currentCategory)); // 回到列表继续计分类停留
+}
+
 (async function init() {
     try {
         // 批量读取配置
@@ -74,6 +146,23 @@ function toggleFavorite(id) {
         buildCategoryNav();
         renderProducts();
         bindEvents();
+        // 记录一次网页访问（每会话仅一次，避免刷新刷屏）
+        try { if (!sessionStorage.getItem('web_visit_logged')) { logVisitor('index'); sessionStorage.setItem('web_visit_logged', '1'); } } catch (e) {}
+        // 开始记录「全部」分类列表的停留时长
+        startView('category', 'all', '全部');
+        // 标签页切走/切回：精确结算停留（避免后台挂着仍计时）
+        document.addEventListener('visibilitychange', function() {
+            var dm = document.getElementById('detailModal');
+            if (document.hidden) {
+                endView();
+            } else if (dm) {
+                var pid = dm.dataset.pid;
+                var p = allProducts.find(function(x) { return String(x.id) === String(pid); });
+                if (p) startView('detail', p.id, p.name || '');
+            } else {
+                startView('category', currentCategory, getCurrentCatLabel(currentCategory));
+            }
+        });
     } catch (err) {
         console.error('初始化失败:', err);
         var el = document.getElementById('products');
@@ -244,6 +333,7 @@ function bindEvents() {
             currentCategory = item.dataset.category;
             document.querySelectorAll('.category-item').forEach(el => el.classList.remove('active'));
             item.classList.add('active');
+            startView('category', currentCategory, item.textContent.trim()); // 结算旧分类停留，开始新分类计时
             renderProducts();
         });
     }
@@ -265,6 +355,9 @@ function bindEvents() {
 function showProductDetail(product) {
     var existing = document.getElementById('detailModal');
     if (existing) existing.remove();
+
+    // 记录商品浏览开始：暂停列表停留，开始详情停留计时
+    startView('detail', product.id, product.name || '');
 
     // 价格显示
     var priceText = '-';
@@ -375,11 +468,12 @@ function showProductDetail(product) {
 
     var modal = document.createElement('div');
     modal.id = 'detailModal';
+    modal.dataset.pid = product.id; // 供标签页切回时重开详情计时
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:1000;overflow-y:auto';
     modal.innerHTML = '<div style="background:#fff;width:100%;max-width:500px;margin:0 auto;min-height:100%;padding-bottom:' + (showBottomBar ? '70px' : 'env(safe-area-inset-bottom, 20px)') + '">' +
         '<div style="position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#fff;border-bottom:1px solid #f0f0f0">' +
         '<h3 style="margin:0;font-size:17px;font-weight:600;color:#1a1a1a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (product.name || '商品详情') + '</h3>' +
-        '<button onclick="document.getElementById(\'detailModal\').remove()" style="border:none;background:#f0f0f0;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:18px;color:#666;line-height:32px;text-align:center;flex-shrink:0;margin-left:8px">✕</button>' +
+        '<button onclick="closeDetailModal()" style="border:none;background:#f0f0f0;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:18px;color:#666;line-height:32px;text-align:center;flex-shrink:0;margin-left:8px">✕</button>' +
         '</div>' +
         '<div style="padding:16px">' + mediaHtml + videoHtml + infoHtml + '</div>' +
         '</div>' +
@@ -408,7 +502,7 @@ function showProductDetail(product) {
 
     // 点击遮罩关闭
     modal.addEventListener('click', function(e) {
-        if (e.target === modal) modal.remove();
+        if (e.target === modal) closeDetailModal();
     });
 
     document.body.appendChild(modal);

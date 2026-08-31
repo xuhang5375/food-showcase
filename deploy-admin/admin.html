@@ -63,6 +63,8 @@
 
             <button id="visitorBtn" onclick="showVisitorLogs()" style="padding:8px 14px;border:1px solid #2196F3;border-radius:6px;background:#2196F3;color:#fff;cursor:pointer;font-size:13px;margin-left:8px">访客记录</button>
 
+            <button id="dwellBtn" onclick="showDwellRanking()" style="padding:8px 14px;border:1px solid #ff9800;border-radius:6px;background:#ff9800;color:#fff;cursor:pointer;font-size:13px;margin-left:8px">停留排行</button>
+
         </div>
 
 
@@ -149,6 +151,21 @@
             </div>
 
             <div id="visitorList" class="admin-list"></div>
+
+        </div>
+
+
+        <div id="dwellSection" style="display:none;">
+
+            <div style="padding:12px 16px;display:flex;gap:8px;align-items:center;background:#f9f9f9;border-bottom:1px solid #eee;flex-wrap:wrap">
+
+                <button onclick="loadVisitorLogs().then(function(){renderDwellRanking(allVisitorLogs);})" style="padding:8px 14px;border:none;border-radius:6px;background:#ff9800;color:#fff;cursor:pointer;font-size:13px">刷新</button>
+
+                <button onclick="hideDwellRanking()" style="padding:8px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">返回商品</button>
+
+            </div>
+
+            <div id="dwellList" class="admin-list"></div>
 
         </div>
 

@@ -1461,7 +1461,7 @@ async function loadVisitorLogs() {
     if (!container) return;
     container.innerHTML = '<div style="text-align:center;padding:40px;color:#999">加载中...</div>';
     try {
-        var _vlUrl = SUPABASE_URL + '/rest/v1/visitor_logs?select=*&order=created_at.desc';
+        var _vlUrl = SUPABASE_URL + '/rest/v1/visitor_logs?select=*&order=created_at.desc&deleted_at=is.null';
         var _vlResp = await fetch(_vlUrl, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } });
         var data = null, error = null;
         if (!_vlResp.ok) { error = { message: 'HTTP ' + _vlResp.status }; }
@@ -1472,6 +1472,85 @@ async function loadVisitorLogs() {
     } catch (e) {
         container.innerHTML = '<div style="color:red;padding:20px">网络错误: ' + e.message + '</div>';
     }
+}
+
+// ---- 商品停留时长排行（仅网页版） ----
+async function showDwellRanking() {
+    document.getElementById('productList').style.display = 'none';
+    document.getElementById('productForm').style.display = 'none';
+    document.getElementById('visitorSection').style.display = 'none';
+    document.getElementById('dwellSection').style.display = 'block';
+    await loadVisitorLogs();
+    renderDwellRanking(allVisitorLogs);
+}
+
+function hideDwellRanking() {
+    document.getElementById('dwellSection').style.display = 'none';
+    document.getElementById('productList').style.display = 'block';
+}
+
+function fmtDur(s) {
+    s = s || 0;
+    if (s < 60) return s + '秒';
+    var m = Math.floor(s / 60), r = s % 60;
+    if (m < 60) return m + '分' + (r ? r + '秒' : '');
+    var h = Math.floor(m / 60);
+    return h + '时' + (m % 60) + '分';
+}
+
+function renderDwellRanking(list) {
+    var container = document.getElementById('dwellList');
+    if (!container) return;
+    if (!list || !list.length) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#999">暂无数据</div>'; return; }
+    var prodMap = {}, catMap = {};
+    list.forEach(function(v) {
+        var page = v.page || '';
+        var dm = page.match(/dur=(\d+)s/);
+        if (!dm) return; // 仅统计网页版带停留时长的记录（小程序无 dur，跳过）
+        var parts = page.split('|||');
+        var type = parts[0] || '';
+        var id = parts[1] || '';
+        var name = parts[2] || (type === 'category' ? '分类' : '未命名');
+        var dur = parseInt(dm[1], 10);
+        if (type === 'detail') {
+            if (!prodMap[id]) prodMap[id] = { name: name, total: 0, count: 0, max: 0 };
+            prodMap[id].total += dur; prodMap[id].count += 1; if (dur > prodMap[id].max) prodMap[id].max = dur;
+        } else if (type === 'category') {
+            if (!catMap[id]) catMap[id] = { name: name, total: 0, count: 0, max: 0 };
+            catMap[id].total += dur; catMap[id].count += 1; if (dur > catMap[id].max) catMap[id].max = dur;
+        }
+    });
+    function toArr(m) {
+        return Object.keys(m).map(function(k) {
+            var x = m[k];
+            return { id: k, name: x.name, total: x.total, count: x.count, max: x.max, avg: x.count ? Math.round(x.total / x.count) : 0 };
+        }).sort(function(a, b) { return b.total - a.total; });
+    }
+    var prodArr = toArr(prodMap), catArr = toArr(catMap);
+    if (!prodArr.length && !catArr.length) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#999">暂无停留记录（需通过网页版浏览商品或分类，仅网页版）</div>';
+        return;
+    }
+    function renderRows(arr) {
+        return arr.map(function(item, i) {
+            return '<div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #eee;gap:12px">' +
+                '<div style="width:28px;height:28px;border-radius:50%;background:#2196F3;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">' + (i + 1) + '</div>' +
+                '<div style="flex:1;min-width:0">' +
+                '<div style="font-weight:600;font-size:14px">' + item.name + '</div>' +
+                '<div style="color:#888;font-size:12px;margin-top:2px">浏览 ' + item.count + ' 次 · 单次最长 ' + fmtDur(item.max) + '</div>' +
+                '</div>' +
+                '<div style="text-align:right;flex-shrink:0">' +
+                '<div style="font-size:15px;font-weight:600;color:#2196F3">' + fmtDur(item.total) + '</div>' +
+                '<div style="font-size:12px;color:#999">平均 ' + fmtDur(item.avg) + '</div>' +
+                '</div></div>';
+        }).join('');
+    }
+    var html = '';
+    html += '<div style="padding:14px 16px 6px;font-size:15px;font-weight:600;color:#1a1a1a">📦 商品停留排行</div>';
+    html += prodArr.length ? renderRows(prodArr) : '<div style="text-align:center;padding:18px;color:#999;font-size:13px">暂无商品停留记录</div>';
+    html += '<div style="padding:18px 16px 6px;font-size:15px;font-weight:600;color:#1a1a1a;border-top:8px solid #f5f5f5;margin-top:6px">🏷️ 分类停留排行</div>';
+    html += catArr.length ? renderRows(catArr) : '<div style="text-align:center;padding:18px;color:#999;font-size:13px">暂无分类停留记录</div>';
+    container.innerHTML = html;
 }
 
 var expandedVisitorGroups = {};
@@ -1512,6 +1591,21 @@ function groupVisitors(list) {
     return groups;
 }
 
+// 美化后台单条访客记录的 page 展示（仅美化网页版带结构的记录，小程序等保持原样）
+function formatPageLabel(page) {
+    if (!page || page === 'index') return '🏠 进入网页';
+    var durMatch = page.match(/dur=(\d+)s/);
+    var durText = durMatch ? (' · 停留 ' + fmtDur(parseInt(durMatch[1], 10))) : '';
+    var parts = page.split('|||');
+    if (parts[0] === 'category') {
+        return '🏷️ 浏览分类：' + (parts[2] || parts[1] || '(未命名)') + durText;
+    }
+    if (parts[0] === 'detail') {
+        return '📦 查看商品：' + (parts[2] || '(未命名商品)') + durText;
+    }
+    return page; // 兜底：未知格式原样显示
+}
+
 function renderVisitorList(list) {
     var container = document.getElementById('visitorList');
     if (!list || list.length === 0) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#999">暂无访客记录</div>'; return; }
@@ -1538,8 +1632,9 @@ function renderVisitorList(list) {
                 var page = rec.page || 'index';
                 html += '<div style="display:flex;align-items:center;padding:8px 16px 8px 56px;gap:8px">' +
                     '<div style="width:6px;height:6px;border-radius:50%;background:#4caf50;flex-shrink:0"></div>' +
-                    '<div style="flex:1;font-size:12px;color:#666">' + page + '</div>' +
-                    '<div style="font-size:12px;color:#999">' + recTime + '</div>' +
+                    '<div style="flex:1;min-width:0;font-size:12px;color:#666">' + formatPageLabel(page) + '</div>' +
+                    '<div style="font-size:12px;color:#999;flex-shrink:0">' + recTime + '</div>' +
+                    '<button onclick="deleteVisitorLog(\'' + rec.id + '\')" style="padding:3px 10px;border:none;border-radius:5px;background:#ffebee;color:#e4393c;cursor:pointer;font-size:12px;flex-shrink:0">删除</button>' +
                     '</div>';
             });
             html += '</div>';
@@ -1547,6 +1642,23 @@ function renderVisitorList(list) {
         html += '</div>';
     });
     container.innerHTML = html;
+}
+
+// ---- 删除单条访客记录（软删除，与小程序的 api.deleteVisitor 互通）----
+async function deleteVisitorLog(id) {
+    if (!confirm('确定删除这条访问记录吗？\n删除后将对自己后台隐藏（网页与小程序同步）。')) return;
+    try {
+        var resp = await fetch(SUPABASE_URL + '/rest/v1/visitor_logs?id=eq.' + encodeURIComponent(id), {
+            method: 'PATCH',
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deleted_at: new Date().toISOString() })
+        });
+        if (!resp.ok) { alert('删除失败: HTTP ' + resp.status); return; }
+        showToast('已删除');
+        await loadVisitorLogs();
+    } catch (e) {
+        alert('删除失败: ' + (e.message || e));
+    }
 }
 
 function toggleVisitorGroup(key) {
