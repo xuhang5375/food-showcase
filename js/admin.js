@@ -1682,6 +1682,19 @@ function groupVisitors(list) {
         g.records.push(v);
     });
     groups.forEach(function(g) {
+        // 修复：组内手机号/姓名优先取「真实值」，避免先来的匿名浏览记录(phone=00000000000)
+        // 把后到的真实登记手机号覆盖掉（分组时 phone/name 只在首条记录取值，不会更新）
+        var VIRTUAL_NAMES = { '访客': 1, '浏览用户': 1, '未登录用户': 1, '浏览用户(未注册)': 1, '网页访客': 1, '未填写': 1 };
+        var bestPhone = '';
+        var bestName = '';
+        g.records.forEach(function(r) {
+            var p = r.phone || '';
+            if (!bestPhone && p && p !== '00000000000' && /^\d{11}$/.test(p)) bestPhone = p;
+            var nm = r.name || '';
+            if (!bestName && nm && !VIRTUAL_NAMES[nm]) bestName = nm;
+        });
+        if (bestPhone) g.phone = bestPhone;
+        if (bestName) g.name = bestName;
         g.records.sort(function(a, b) {
             if (a.created_at > b.created_at) return -1;
             if (a.created_at < b.created_at) return 1;
